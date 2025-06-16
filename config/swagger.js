@@ -12,7 +12,7 @@ const options = {
         },
         servers: [
             {
-                url: 'http://localhost:5000', // Adjust this if you use a different base URL
+                url: 'https://ticportal.onrender.com', // Adjust this if you use a different base URL
             },
         ],
         components: {
