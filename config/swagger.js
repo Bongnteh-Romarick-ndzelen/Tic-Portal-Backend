@@ -1,4 +1,3 @@
-// swagger.js
 import swaggerJsdoc from 'swagger-jsdoc';
 
 const options = {
@@ -12,7 +11,7 @@ const options = {
         },
         servers: [
             {
-                url: 'https://ticportal.onrender.com', // Adjust this if you use a different base URL
+                url: 'http://localhost:5000', // Adjust this if you use a different base URL
             },
         ],
         components: {
@@ -30,7 +29,7 @@ const options = {
                         _id: { type: 'string' },
                         fullName: { type: 'string' },
                         email: { type: 'string' },
-                        role: { type: 'string', enum: ['student', 'instructor', 'admin','employer', 'mentor'] },
+                        role: { type: 'string', enum: ['student', 'instructor', 'admin', 'employer', 'mentor'] },
                         createdAt: { type: 'string', format: 'date-time' },
                     },
                 },
@@ -118,10 +117,47 @@ const options = {
                         createdAt: { type: 'string', format: 'date-time' },
                     },
                 },
+                InternshipApplication: {
+                    type: 'object',
+                    properties: {
+                        _id: { type: 'string' },
+                        studentId: { type: 'string' },
+                        internshipId: { type: 'string' },
+                        resumeUrl: { type: 'string' },
+                        createdAt: { type: 'string', format: 'date-time' },
+                    },
+                    required: ['studentId', 'internshipId', 'resumeUrl'],
+                },
+                Internship: {
+                    type: 'object',
+                    properties: {
+                        _id: { type: 'string' },
+                        title: { type: 'string' },
+                        description: { type: 'string' },
+                        company: { type: 'string' },
+                        location: { type: 'string' },
+                        startDate: { type: 'string', format: 'date' },
+                        endDate: { type: 'string', format: 'date' },
+                        stipend: { type: 'number' },
+                        skills: {
+                            type: 'array',
+                            items: { type: 'string' },
+                        },
+                        responsibilities: {
+                            type: 'array',
+                            items: { type: 'string' },
+                        },
+                        qualifications: {
+                            type: 'array',
+                            items: { type: 'string' },
+                        },
+                        createdAt: { type: 'string', format: 'date-time' },
+                        updatedAt: { type: 'string', format: 'date-time' },
+                    },
+                    required: ['title', 'description', 'company', 'location', 'startDate', 'endDate', 'stipend'],
+                },
             },
         },
-
-
         security: [{ bearerAuth: [] }],
     },
     apis: ['./src/routes/**/*.js'], // include all route files like auth.js, courses.js, enrollments.js, etc.

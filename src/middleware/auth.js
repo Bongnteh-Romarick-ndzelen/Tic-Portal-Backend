@@ -3,20 +3,23 @@ import User from '../models/User.js';
 
 // ✅ Middleware to authenticate users
 export const authenticate = async (req, res, next) => {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'No token provided' });
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        try {
+            // Get token from header
+            token = req.headers.authorization.split(' ')[1];
+            // Verify token
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            // Get user from the token
+            req.user = await User.findById(decoded.id).select('-password');
+            next();
+        } catch (error) {
+            console.error(error);
+            res.status(401).json({ message: 'Not authorized, token failed' });
+        }
     }
-
-    const token = authHeader.split(' ')[1];
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = await User.findById(decoded.id).select('-password');
-        next();
-    } catch (error) {
-        res.status(401).json({ message: 'Invalid token' });
+    if (!token) {
+        res.status(401).json({ message: 'Not authorized, no token' });
     }
 };
 
@@ -24,6 +27,14 @@ export const authenticate = async (req, res, next) => {
 export const isInstructor = (req, res, next) => {
     if (req.user?.userType !== 'instructor') {
         return res.status(403).json({ message: 'Only instructors can perform this action' });
+    }
+    next();
+};
+
+// ✅ Middleware to check if user is an admin
+export const isAdmin = (req, res, next) => {
+    if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Only admins can perform this action' });
     }
     next();
 };

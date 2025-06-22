@@ -24,6 +24,10 @@ import forumRoutes from './routes/forum/forum.js';
 import moduleRoute from './routes/module/moduleRoute.js';
 import moduleExtrasRoutes from './routes/module/moduleExtraRoute.js';
 
+import internshipRoutes from './routes/internships/internship.js';
+import myApplicationRoutes from './routes/internships/myApplication.js';
+import applyInternshipRoutes from './routes/internships/applyInternship.js';
+
 const app = express();
 
 // Connect to MongoDB
@@ -55,6 +59,10 @@ app.use('/api/forums', forumRoutes);
 
 app.use('/api/modules', moduleRoute);
 app.use('/api/modules', moduleExtrasRoutes); // 📌 Mounts summary & quiz routes under same path
+
+app.use('/api/internships', internshipRoutes);
+app.use('/api/applications', myApplicationRoutes);
+app.use('/api/apply', applyInternshipRoutes);
 // Swagger Docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -63,4 +71,4 @@ app.use(errorHandler);
 
 // Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server started on port ${ PORT }`));
+app.listen(PORT, () => console.log(`🚀 Server started on port http://localhost:${PORT}`));
