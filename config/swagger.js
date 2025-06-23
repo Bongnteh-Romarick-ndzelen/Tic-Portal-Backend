@@ -11,8 +11,13 @@ const options = {
         },
         servers: [
             {
-                url: 'http://localhost:5000', // Adjust this if you use a different base URL
+                url: 'http://localhost:5000',
+                description: 'Local development server'
             },
+            {
+                url: process.env.PRODUCTION_URL || 'https://ticportal.onrender.com',
+                description: 'Production server'
+            }
         ],
         components: {
             securitySchemes: {
