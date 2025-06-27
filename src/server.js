@@ -1,4 +1,4 @@
-// server.js (or index.js)
+
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -62,7 +62,7 @@ app.use('/api/modules', moduleExtrasRoutes); // 📌 Mounts summary & quiz route
 
 app.use('/api/internships', internshipRoutes);
 app.use('/api/applications', myApplicationRoutes);
-app.use('/api/apply', applyInternshipRoutes);
+app.use('/api/internship', applyInternshipRoutes);
 // Swagger Docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

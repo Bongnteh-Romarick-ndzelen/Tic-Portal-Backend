@@ -13,6 +13,9 @@ const moduleSchema = new mongoose.Schema({
     pdfUrl: { type: String },   // Optional pdf
 
 }, { timestamps: true });
+moduleSchema.index({ courseId: 1 });
+moduleSchema.index({ quizzes: 1 });
+moduleSchema.index({ summaries: 1 });
 
 const Module = mongoose.model('Module', moduleSchema);
 export default Module;

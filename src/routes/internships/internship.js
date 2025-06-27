@@ -3,7 +3,6 @@ import { createInternship, getInternships, getInternshipById, updateInternship, 
 import { authenticate, isAdmin } from '../../middleware/auth.js';
 const router = express.Router();
 
-
 /**
  * @swagger
  * /api/internships:
@@ -17,7 +16,73 @@ const router = express.Router();
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Internship'
+ *             type: object
+ *             required:
+ *               - title
+ *               - company
+ *               - domain
+ *               - stipend
+ *               - duration
+ *               - location
+ *               - description
+ *               - startDate
+ *               - endDate
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: "Full Stack Developer Intern"
+ *               company:
+ *                 type: string
+ *                 example: "Tech Innovations Inc."
+ *               domain:
+ *                 type: string
+ *                 example: "Web Development"
+ *               stipend:
+ *                 type: number
+ *                 format: float
+ *                 minimum: 0
+ *                 example: 1500
+ *               duration:
+ *                 type: string
+ *                 example: "6 months"
+ *               location:
+ *                 type: string
+ *                 example: "Remote (Global)"
+ *               description:
+ *                 type: string
+ *                 example: "Join our team to build cutting-edge applications..."
+ *               startDate:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-07-15"
+ *               endDate:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-12-15"
+ *               skills:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["JavaScript", "React", "Node.js"]
+ *               responsibilities:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Develop web applications", "Write clean code"]
+ *               qualifications:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Computer Science degree", "Git experience"]
+ *               status:
+ *                 type: string
+ *                 enum: [draft, active, closed]
+ *                 default: active
+ *                 example: active
+ *               applicationDeadline:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-07-05"
  *     responses:
  *       201:
  *         description: Internship created successfully
@@ -42,7 +107,7 @@ const router = express.Router();
  *                   type: array
  *                   items:
  *                     type: string
- *                   example: ["Title is required", "Stipend must be positive number"]
+ *                   example: ["Title is required", "End date must be after start date"]
  *       401:
  *         description: Unauthorized (missing or invalid token)
  *       403:

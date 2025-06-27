@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate, isInstructor } from '../../middleware/auth.js';
+import { authenticate, isAdmin, isInstructor } from '../../middleware/auth.js';
 import upload from '../../middleware/upload.js';
 import { createCourse, getCourses, getCourseById, updateCourse, deleteCourse } from '../../controllers/course/courseController.js';
 
@@ -77,12 +77,11 @@ router.post('/', authenticate, isInstructor, cpUpload, createCourse);
  *         description: Server error
  */
 router.get('/', getCourses);
-
 /**
  * @swagger
  * /api/courses/{id}:
  *   get:
- *     summary: Get a course by ID
+ *     summary: Get complete course details with modules, quizzes and summaries
  *     tags: [Courses]
  *     parameters:
  *       - in: path
@@ -90,16 +89,97 @@ router.get('/', getCourses);
  *         required: true
  *         schema:
  *           type: string
- *         description: Course ID
+ *         description: MongoDB Course ID
  *     responses:
  *       200:
- *         description: Course found
+ *         description: Successfully retrieved course with all nested content
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Course'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/FullCourse'
  *       404:
  *         description: Course not found
+ *       500:
+ *         description: Internal server error
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     FullCourse:
+ *       type: object
+ *       allOf:
+ *         - $ref: '#/components/schemas/Course'
+ *         - type: object
+ *           properties:
+ *             modules:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/ModuleWithContent'
+ * 
+ *     ModuleWithContent:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         title:
+ *           type: string
+ *         textContent:
+ *           type: string
+ *         videoUrl:
+ *           type: string
+ *         pdfUrl:
+ *           type: string
+ *         summaries:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Summary'
+ *         quizzes:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/QuizWithQuestions'
+ * 
+ *     Summary:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         title:
+ *           type: string
+ *         content:
+ *           type: string
+ * 
+ *     QuizWithQuestions:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         title:
+ *           type: string
+ *         questionCount:
+ *           type: number
+ *         questions:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/QuizQuestion'
+ * 
+ *     QuizQuestion:
+ *       type: object
+ *       properties:
+ *         question:
+ *           type: string
+ *         options:
+ *           type: array
+ *           items:
+ *             type: string
+ *         answer:
+ *           type: string
  */
 router.get('/:id', getCourseById);
 

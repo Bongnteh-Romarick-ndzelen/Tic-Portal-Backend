@@ -25,16 +25,23 @@ export const authenticate = async (req, res, next) => {
 
 // ✅ Middleware to check if user is an instructor
 export const isInstructor = (req, res, next) => {
-    if (req.user?.userType !== 'instructor') {
-        return res.status(403).json({ message: 'Only instructors can perform this action' });
+    if (req.user?.userType !== 'instructor' || req.user?.userType !== 'admin') {
+        return res.status(403).json({ message: 'Only instructors or Admin can perform this action' });
     }
     next();
 };
 
 // ✅ Middleware to check if user is an admin
 export const isAdmin = (req, res, next) => {
-    if (req.user?.role !== 'admin') {
+    if (req.user?.userType !== 'admin') {
         return res.status(403).json({ message: 'Only admins can perform this action' });
+    }
+    next();
+};
+
+export const isStudent = (req, res, next) => {
+    if (req.user?.userType !== 'student') {
+        return res.status(403).json({ message: 'Only Students are allowed to enrolled for an Internship!' });
     }
     next();
 };

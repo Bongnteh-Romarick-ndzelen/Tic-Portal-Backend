@@ -1,50 +1,99 @@
 import express from 'express';
+import {
+    upload,
+    attachFileUrls,
+    initUploadDirectory
+} from '../../middleware/internshipUpload.js';
+import { authenticate, isStudent } from '../../middleware/auth.js';
 import { applyForInternship } from '../../controllers/internship/applyInternshipController.js';
-import { authenticate } from '../../middleware/auth.js';
 
 const router = express.Router();
 
+// Initialize and serve uploads
+router.use('/uploads', initUploadDirectory());
+
 /**
  * @swagger
- * /api/apply/:id/apply:
+ * /api/internship/{id}/apply:
  *   post:
- *     summary: Apply for an internship (protected route)
- *     tags: [Internships]
+ *     summary: Submit internship application
+ *     tags: [Internship Applications]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: ID of the internship to apply for
  *         schema:
  *           type: string
+ *         description: Internship ID
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
+ *             required:
+ *               - resumeFile
+ *               - applicationLetter
+ *               - school
+ *               - year
  *             properties:
- *               studentId:
+ *               resumeFile:
  *                 type: string
- *                 description: ID of the student applying
- *               resumeUrl:
+ *                 format: binary
+ *                 description: PDF or Word document (max 5MB)
+ *               supportLetter:
  *                 type: string
- *                 description: URL of the student's resume
+ *                 format: binary
+ *                 description: Optional recommendation letter
+ *               applicationLetter:
+ *                 type: string
+ *                 minLength: 50
+ *                 maxLength: 1000
+ *               school:
+ *                 type: string
+ *                 maxLength: 100
+ *               year:
+ *                 type: string
+ *                 enum: [Year one, Year two, Year three, Year four, Year five, Other]
+ *               linkedinUrl:
+ *                 type: string
+ *                 format: uri
+ *               githubUrl:
+ *                 type: string
+ *                 format: uri
+ *               portfolioUrl:
+ *                 type: string
+ *                 format: uri
  *     responses:
  *       201:
- *         description: Successful application submission
+ *         description: Application created
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/InternshipApplication'
- *       401:
- *         description: Unauthorized - requires a valid JWT token
  *       400:
- *         description: Application failed due to validation errors or other issues
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Internship not found
+ *       413:
+ *         description: File too large
+ *       500:
+ *         description: Server error
  */
-// Protected route (requires valid JWT)
-router.post('/:id/apply', authenticate, applyForInternship);
+router.post(
+    '/:id/apply',
+    authenticate,
+    isStudent,
+    upload.fields([
+        { name: 'resumeFile', maxCount: 1 },
+        { name: 'supportLetter', maxCount: 1 }
+    ]),
+    attachFileUrls,
+    applyForInternship
+);
 
 export default router;
