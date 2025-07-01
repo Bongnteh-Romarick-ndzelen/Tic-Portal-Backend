@@ -3,7 +3,7 @@ import express from 'express';
 import Enrollment from '../../models/Enrollment.js';
 import Course from '../../models/Course.js';
 import { authenticate, isInstructor } from '../../middleware/auth.js';
-import { notInstructor } from '../../middleware/roles.js';
+import { IsnotInstructor } from '../../middleware/roles.js';
 
 const router = express.Router();
 
@@ -47,7 +47,7 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.post('/:courseId', authenticate, notInstructor, async (req, res) => {
+router.post('/:courseId', authenticate, IsnotInstructor, async (req, res) => {
     try {
         const existing = await Enrollment.findOne({
             student: req.user._id,
@@ -145,6 +145,7 @@ router.get('/my-courses/enrollments', authenticate, isInstructor, async (req, re
     }
 });
 
+
 /**
  * @swagger
  * /api/enrollments/manual:
@@ -169,120 +170,102 @@ router.get('/my-courses/enrollments', authenticate, isInstructor, async (req, re
  *               courseId:
  *                 type: string
  *                 description: The course the student should be enrolled in
- *               status:
- *                 type: string
- *                 enum: [active, completed, cancelled]
- *                 default: active
- *                 description: Initial enrollment status
  *     responses:
  *       201:
  *         description: Enrollment successful
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Enrollment'
  *       400:
- *         description: Bad request (already enrolled or invalid data)
+ *         description: Already enrolled
  *       403:
- *         description: Forbidden (not course instructor or student doesn't exist)
- *       404:
- *         description: Course or student not found
+ *         description: Unauthorized
  *       500:
  *         description: Server error
  */
 router.post('/manual', authenticate, isInstructor, async (req, res) => {
-    const { studentId, courseId, status = 'active' } = req.body;
+    const { studentId, courseId } = req.body;
+
+    // Validate ObjectIDs first
+    if (!mongoose.Types.ObjectId.isValid(studentId) ||
+        !mongoose.Types.ObjectId.isValid(courseId)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid ID format'
+        });
+    }
 
     try {
-        // Validate inputs
-        if (!mongoose.Types.ObjectId.isValid(studentId)) {
-            return res.status(400).json({ message: 'Invalid student ID' });
-        }
-
-        if (!mongoose.Types.ObjectId.isValid(courseId)) {
-            return res.status(400).json({ message: 'Invalid course ID' });
-        }
-
-        // Verify course ownership and existence
+        // Verify course ownership
         const course = await Course.findOne({
             _id: courseId,
-            instructor: req.user._id
-        }).select('_id title instructor');
+            instructor: req.user._id // Ensure requesting user is the instructor
+        });
 
         if (!course) {
             return res.status(403).json({
-                message: 'You do not own this course or course not found'
+                success: false,
+                message: 'You must be the course instructor to enroll students'
             });
         }
 
         // Verify student exists
         const student = await User.findOne({
             _id: studentId,
-            userType: 'student'
-        }).select('_id fullName email');
+            $or: [
+                { role: 'student' },
+                { userType: 'student' }
+            ]
+        });
 
         if (!student) {
             return res.status(404).json({
-                message: 'Student not found or not a valid student account'
+                success: false,
+                message: 'Student account not found'
             });
         }
 
-        // Check existing enrollment
-        const existingEnrollment = await Enrollment.findOne({
+        // Check for existing enrollment
+        const existing = await Enrollment.findOne({
             student: studentId,
             course: courseId
         });
 
-        if (existingEnrollment) {
+        if (existing) {
             return res.status(400).json({
+                success: false,
                 message: 'Student already enrolled',
-                enrollment: existingEnrollment
+                enrollmentId: existing._id
             });
         }
 
-        // Create new enrollment
-        const enrollment = new Enrollment({
+        // Create enrollment
+        const enrollment = await Enrollment.create({
             student: studentId,
             course: courseId,
-            status,
-            progress: 0,
-            lastAccessed: new Date()
+            enrolledBy: req.user._id,
+            status: 'active'
         });
 
-        await enrollment.save();
-
-        // Update course's studentsEnrolled array
+        // Update course's enrollment list
         await Course.findByIdAndUpdate(
             courseId,
-            { $addToSet: { studentsEnrolled: enrollment._id } },
-            { new: true }
+            { $addToSet: { studentsEnrolled: enrollment._id } }
         );
 
-        // TODO: Send enrollment notification to student (via email or in-app)
-
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: 'Enrollment successful',
             data: {
-                enrollment,
-                course: {
-                    _id: course._id,
-                    title: course.title
-                },
-                student: {
-                    _id: student._id,
-                    fullName: student.fullName,
-                    email: student.email
-                }
+                enrollmentId: enrollment._id,
+                student: student._id,
+                course: course._id
             }
         });
 
-    } catch (err) {
-        console.error('Manual enrollment error:', err);
-        res.status(500).json({
+    } catch (error) {
+        console.error('Manual enrollment failed:', error);
+        return res.status(500).json({
             success: false,
-            message: 'Server error during enrollment',
-            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+            message: 'Enrollment processing failed',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
