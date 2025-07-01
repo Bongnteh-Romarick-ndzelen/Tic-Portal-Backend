@@ -25,7 +25,7 @@ export const authenticate = async (req, res, next) => {
 
 // ✅ Middleware to check if user is an instructor
 export const isInstructor = (req, res, next) => {
-    if (req.user?.userType !== 'instructor' || req.user?.userType !== 'admin') {
+    if (req.user?.userType !== 'instructor' && req.user?.userType !== 'admin') {
         return res.status(403).json({ message: 'Only instructors or Admin can perform this action' });
     }
     next();
