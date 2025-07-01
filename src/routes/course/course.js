@@ -81,7 +81,7 @@ router.get('/', getCourses);
  * @swagger
  * /api/courses/{id}:
  *   get:
- *     summary: Get complete course details with modules, quizzes and summaries
+ *     summary: Get complete course details with modules, quizzes, summaries, and enrolled students
  *     tags: [Courses]
  *     parameters:
  *       - in: path
@@ -92,7 +92,7 @@ router.get('/', getCourses);
  *         description: MongoDB Course ID
  *     responses:
  *       200:
- *         description: Successfully retrieved course with all nested content
+ *         description: Successfully retrieved course with all nested content and enrolled students
  *         content:
  *           application/json:
  *             schema:
@@ -101,7 +101,7 @@ router.get('/', getCourses);
  *                 success:
  *                   type: boolean
  *                 data:
- *                   $ref: '#/components/schemas/FullCourse'
+ *                   $ref: '#/components/schemas/FullCourseWithEnrollments'
  *       404:
  *         description: Course not found
  *       500:
@@ -112,16 +112,45 @@ router.get('/', getCourses);
  * @swagger
  * components:
  *   schemas:
- *     FullCourse:
+ *     FullCourseWithEnrollments:
  *       type: object
  *       allOf:
  *         - $ref: '#/components/schemas/Course'
  *         - type: object
  *           properties:
+ *             enrollmentCount:
+ *               type: number
+ *               description: Total number of enrolled students
+ *             enrolledStudents:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/EnrolledStudent'
  *             modules:
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/ModuleWithContent'
+ * 
+ *     EnrolledStudent:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           description: User ID
+ *         fullName:
+ *           type: string
+ *         email:
+ *           type: string
+ *         profilePicture:
+ *           type: string
+ *           description: URL to user's profile picture
+ *         enrolledAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the user enrolled in the course
+ *         status:
+ *           type: string
+ *           enum: [active, completed, cancelled]
+ *           description: Enrollment status
  * 
  *     ModuleWithContent:
  *       type: object

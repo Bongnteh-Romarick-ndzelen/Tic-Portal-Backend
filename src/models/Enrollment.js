@@ -12,6 +12,9 @@ const enrollmentSchema = new mongoose.Schema({
         ref: 'Course',
         required: true
     },
+    enrolledAt: { type: Date, default: Date.now },
+    status: { type: String, enum: ['active', 'completed', 'cancelled'], default: 'active' },
+    lastAccessed: { type: Date, default: Date.now },
     progress: {
         type: Number,
         default: 0

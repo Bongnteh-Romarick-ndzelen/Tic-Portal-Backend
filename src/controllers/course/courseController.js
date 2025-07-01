@@ -39,18 +39,26 @@ export const getCourses = async (req, res) => {
 
 
 /**
- * @description Get complete course details with modules, quizzes, and summaries
+ * @description Get complete course details with modules, quizzes, summaries, and enrolled students
  */
 export const getCourseById = async (req, res) => {
     try {
         const course = await Course.findById(req.params.id)
             .populate('instructor', 'fullName email')
+            .populate({
+                path: 'studentsEnrolled',
+                select: 'user enrolledAt status',
+                populate: {
+                    path: 'user',
+                    select: 'fullName email profilePicture'
+                }
+            })
             .lean();
 
         if (!course) {
             return res.status(404).json({
                 success: false,
-                message: 'Course not found'
+                message: 'Course not found, please make sure the courseID is correct'
             });
         }
 
@@ -84,9 +92,21 @@ export const getCourseById = async (req, res) => {
             })
             .lean();
 
+        // Process enrolled students data
+        const enrolledStudents = course.studentsEnrolled?.map(enrollment => ({
+            _id: enrollment.user._id,
+            fullName: enrollment.user.fullName,
+            email: enrollment.user.email,
+            profilePicture: enrollment.user.profilePicture,
+            enrolledAt: enrollment.enrolledAt,
+            status: enrollment.status
+        })) || [];
+
         // Build the response structure
         const response = {
             ...course,
+            enrollmentCount: enrolledStudents.length,
+            enrolledStudents, // Include full student details
             modules: modules.map(module => ({
                 _id: module._id,
                 title: module.title,

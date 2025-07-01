@@ -33,10 +33,11 @@ const courseSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    studentsEnrolled: {
-        type: Number,
-        default: 0
-    },
+    studentsEnrolled: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Enrollment',
+        default: []
+    }],
     modules: [
         {
             type: mongoose.Schema.Types.ObjectId,
