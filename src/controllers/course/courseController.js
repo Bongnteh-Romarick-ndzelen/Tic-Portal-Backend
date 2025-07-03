@@ -38,18 +38,16 @@ export const getCourses = async (req, res) => {
 };
 
 
-/**
- * @description Get complete course details with modules, quizzes, summaries, and enrolled students
- */
+//Fixed getCourseById controller
 export const getCourseById = async (req, res) => {
     try {
         const course = await Course.findById(req.params.id)
             .populate('instructor', 'fullName email')
             .populate({
                 path: 'studentsEnrolled',
-                select: 'user enrolledAt status',
+                select: 'student enrolledAt status progress lastAccessed',
                 populate: {
-                    path: 'user',
+                    path: 'student',
                     select: 'fullName email profilePicture'
                 }
             })
@@ -62,9 +60,6 @@ export const getCourseById = async (req, res) => {
             });
         }
 
-        // Safely get module IDs (handle undefined cases)
-        const moduleIds = course.modules?.map(m => m._id) || [];
-
         // Get all modules for this course
         const modules = await Module.find({ courseId: course._id })
             .select('title textContent videoUrl pdfUrl quizzes summaries')
@@ -73,7 +68,7 @@ export const getCourseById = async (req, res) => {
         // Get all summaries referenced in modules
         const summaryIds = modules.flatMap(m =>
             m.summaries?.map(s => s._id) || []
-        ).filter(id => id); // Remove any undefined/null
+        ).filter(id => id);
 
         const summaries = await Summary.find({ _id: { $in: summaryIds } })
             .select('title content')
@@ -82,7 +77,7 @@ export const getCourseById = async (req, res) => {
         // Get all quizzes referenced in modules
         const quizIds = modules.flatMap(m =>
             m.quizzes?.map(q => q._id) || []
-        ).filter(id => id); // Remove any undefined/null
+        ).filter(id => id);
 
         const quizzes = await Quiz.find({ _id: { $in: quizIds } })
             .select('title questions')
@@ -92,21 +87,23 @@ export const getCourseById = async (req, res) => {
             })
             .lean();
 
-        // Process enrolled students data
+        // Process enrolled students data - Fixed the field reference
         const enrolledStudents = course.studentsEnrolled?.map(enrollment => ({
-            _id: enrollment.user._id,
-            fullName: enrollment.user.fullName,
-            email: enrollment.user.email,
-            profilePicture: enrollment.user.profilePicture,
+            _id: enrollment.student._id,
+            fullName: enrollment.student.fullName,
+            email: enrollment.student.email,
+            profilePicture: enrollment.student.profilePicture,
             enrolledAt: enrollment.enrolledAt,
-            status: enrollment.status
+            status: enrollment.status,
+            progress: enrollment.progress,
+            lastAccessed: enrollment.lastAccessed
         })) || [];
 
         // Build the response structure
         const response = {
             ...course,
             enrollmentCount: enrolledStudents.length,
-            enrolledStudents, // Include full student details
+            enrolledStudents,
             modules: modules.map(module => ({
                 _id: module._id,
                 title: module.title,
@@ -129,7 +126,6 @@ export const getCourseById = async (req, res) => {
             success: true,
             data: response
         });
-
     } catch (err) {
         console.error(`[CourseController] Error fetching course ${req.params.id}:`, err);
         res.status(500).json({

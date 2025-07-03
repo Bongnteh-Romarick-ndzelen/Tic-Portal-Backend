@@ -206,7 +206,7 @@ router.post('/manual', authenticate, isInstructor, async (req, res) => {
             });
         }
 
-        // Verify student exists
+        // Verify student exists (and is actually a student, not another instructor)
         const student = await User.findOne({
             _id: studentId,
             $or: [
@@ -221,6 +221,14 @@ router.post('/manual', authenticate, isInstructor, async (req, res) => {
                 message: 'Student account not found'
             });
         }
+
+        // The key check: Is the person being enrolled actually a student?
+        // Your current code already handles this:
+        // const student = await User.findOne({ _id: studentId, $or: [{ role: 'student' }, { userType: 'student' }] });
+        // This query implicitly prevents instructors from being enrolled as students.
+        // If an instructor's ID is passed as studentId, this query will return null, leading to a 404 'Student account not found'.
+        // So, no need for the separate `IsnotInstructor` middleware here.
+
 
         // Check for existing enrollment
         const existing = await Enrollment.findOne({
