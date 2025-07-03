@@ -1,6 +1,7 @@
 // controllers/Course/courseController.js
 import Course from '../../models/Course.js';
 import Module from '../../models/Module.js';
+import Enrollment from '../../models/Enrollment.js';
 import Quiz from '../../models/Quiz.js';
 import Summary from '../../models/Summary.js';
 
@@ -38,9 +39,23 @@ export const getCourses = async (req, res) => {
 };
 
 
-//Fixed getCourseById controller
+// Debug version - Add this temporarily to see what's happening
 export const getCourseById = async (req, res) => {
     try {
+        console.log('=== DEBUGGING COURSE ENROLLMENT ===');
+        console.log('Course ID:', req.params.id);
+
+        // Step 1: Get the raw course without population
+        const rawCourse = await Course.findById(req.params.id).lean();
+        console.log('Raw course studentsEnrolled:', rawCourse?.studentsEnrolled);
+
+        // Step 2: Check if there are any enrollments for this course
+        const enrollments = await Enrollment.find({ course: req.params.id })
+            .populate('student', 'fullName email profilePicture')
+            .lean();
+        console.log('Direct enrollment query result:', enrollments);
+
+        // Step 3: Get course with population
         const course = await Course.findById(req.params.id)
             .populate('instructor', 'fullName email')
             .populate({
@@ -53,6 +68,8 @@ export const getCourseById = async (req, res) => {
             })
             .lean();
 
+        console.log('Populated course studentsEnrolled:', course?.studentsEnrolled);
+
         if (!course) {
             return res.status(404).json({
                 success: false,
@@ -60,12 +77,25 @@ export const getCourseById = async (req, res) => {
             });
         }
 
-        // Get all modules for this course
+        // Use the direct enrollment query result instead of the populated one
+        const enrolledStudents = enrollments.map(enrollment => ({
+            _id: enrollment.student._id,
+            fullName: enrollment.student.fullName,
+            email: enrollment.student.email,
+            profilePicture: enrollment.student.profilePicture,
+            enrolledAt: enrollment.enrolledAt,
+            status: enrollment.status,
+            progress: enrollment.progress,
+            lastAccessed: enrollment.lastAccessed
+        }));
+
+        console.log('Processed enrolled students:', enrolledStudents);
+
+        // Get modules and other data (keeping your existing logic)
         const modules = await Module.find({ courseId: course._id })
             .select('title textContent videoUrl pdfUrl quizzes summaries')
             .lean();
 
-        // Get all summaries referenced in modules
         const summaryIds = modules.flatMap(m =>
             m.summaries?.map(s => s._id) || []
         ).filter(id => id);
@@ -74,7 +104,6 @@ export const getCourseById = async (req, res) => {
             .select('title content')
             .lean();
 
-        // Get all quizzes referenced in modules
         const quizIds = modules.flatMap(m =>
             m.quizzes?.map(q => q._id) || []
         ).filter(id => id);
@@ -87,23 +116,10 @@ export const getCourseById = async (req, res) => {
             })
             .lean();
 
-        // Process enrolled students data - Fixed the field reference
-        const enrolledStudents = course.studentsEnrolled?.map(enrollment => ({
-            _id: enrollment.student._id,
-            fullName: enrollment.student.fullName,
-            email: enrollment.student.email,
-            profilePicture: enrollment.student.profilePicture,
-            enrolledAt: enrollment.enrolledAt,
-            status: enrollment.status,
-            progress: enrollment.progress,
-            lastAccessed: enrollment.lastAccessed
-        })) || [];
-
-        // Build the response structure
         const response = {
             ...course,
             enrollmentCount: enrolledStudents.length,
-            enrolledStudents,
+            enrolledStudents, // Using the direct query result
             modules: modules.map(module => ({
                 _id: module._id,
                 title: module.title,
@@ -121,6 +137,9 @@ export const getCourseById = async (req, res) => {
                 }))
             }))
         };
+
+        console.log('Final response enrollmentCount:', response.enrollmentCount);
+        console.log('=== END DEBUGGING ===');
 
         res.status(200).json({
             success: true,
