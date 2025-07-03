@@ -1,4 +1,4 @@
-// models/Enrollment.js - Fixed typo
+// models/Enrollment.js
 import mongoose from 'mongoose';
 
 const enrollmentSchema = new mongoose.Schema({
@@ -8,7 +8,7 @@ const enrollmentSchema = new mongoose.Schema({
         required: true
     },
     course: {
-        type: mongoose.Schema.Types.ObjectId, // Fixed typo: 'monagoose' -> 'mongoose'
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'Course',
         required: true
     },
