@@ -251,7 +251,6 @@ router.post('/:courseId/step2',
     createCourseStep2
 );
 
-
 // ------------------------------------------------------------------
 // STEP 3: Curriculum (Updated for Topic-Based Structure)
 // ------------------------------------------------------------------
@@ -292,13 +291,16 @@ router.post('/:courseId/step2',
  *             example:
  *               modules:
  *                 - title: "JavaScript Fundamentals"
+ *                   order: 1
  *                   topics:
  *                     - title: "Variables"
+ *                       order: 1
  *                       type: "text"
  *                       description: "Learn about variables"
  *                       content:
  *                         textContent: "Variables are containers..."
  *                     - title: "Data Types Quiz"
+ *                       order: 2
  *                       type: "quiz"
  *                       description: "Test your knowledge"
  *                       content:
@@ -336,10 +338,15 @@ router.post('/:courseId/step2',
  *       type: object
  *       required:
  *         - title
+ *         - order
  *       properties:
  *         title:
  *           type: string
  *           example: "Advanced JavaScript"
+ *         order:
+ *           type: number
+ *           description: "Sequence order of the module within the course"
+ *           example: 1
  *         topics:
  *           type: array
  *           items:
@@ -351,10 +358,15 @@ router.post('/:courseId/step2',
  *         - title
  *         - type
  *         - description
+ *         - order
  *       properties:
  *         title:
  *           type: string
  *           example: "ES6 Features"
+ *         order:
+ *           type: number
+ *           description: "Sequence order of the topic within the module"
+ *           example: 1
  *         type:
  *           type: string
  *           enum: [video, pdf, text, quiz]
@@ -461,6 +473,8 @@ router.post('/:courseId/step2',
  *           format: objectId
  *         title:
  *           type: string
+ *         order:
+ *           type: number
  *         topics:
  *           type: array
  *           items:
@@ -474,6 +488,8 @@ router.post('/:courseId/step2',
  *           format: objectId
  *         title:
  *           type: string
+ *         order:
+ *           type: number
  *         type:
  *           type: string
  *           enum: [video, pdf, text, quiz]
@@ -497,7 +513,7 @@ router.post('/:courseId/step2',
  *           type: array
  *           items:
  *             type: string
- *           example: ["Topic 'Variables' requires textContent"]
+ *           example: ["Topic 'Variables' requires textContent", "Module order is required", "Topic order is required"]
  */
 router.post('/step3/:courseId',
     authenticate,
