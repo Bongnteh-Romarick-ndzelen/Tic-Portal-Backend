@@ -165,7 +165,7 @@ const options = {
         },
         security: [{ bearerAuth: [] }],
     },
-    apis: ['./src/routes/**/*.js'], // include all route files like auth.js, courses.js, enrollments.js, etc.
+    apis: ['./src/routes/**/*.js'],
 };
 
 const swaggerSpec = swaggerJsdoc(options);

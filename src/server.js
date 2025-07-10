@@ -2,6 +2,8 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -22,13 +24,14 @@ import labRoutes from './routes/labs/labs.js';
 import forumRoutes from './routes/forum/forum.js';
 
 import moduleRoute from './routes/module/moduleRoute.js';
-import moduleExtrasRoutes from './routes/module/moduleExtraRoute.js';
 
 import internshipRoutes from './routes/internships/internship.js';
 import myApplicationRoutes from './routes/internships/myApplication.js';
 import applyInternshipRoutes from './routes/internships/applyInternship.js';
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Connect to MongoDB
 connectDB(); // 👈 Replaces mongoose.connect()
@@ -52,13 +55,12 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/users', userRoutes);
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(join(__dirname, 'uploads')));
 
 app.use('/api/labs', labRoutes);
 app.use('/api/forums', forumRoutes);
 
 app.use('/api/modules', moduleRoute);
-app.use('/api/modules', moduleExtrasRoutes); // 📌 Mounts summary & quiz routes under same path
 
 app.use('/api/internships', internshipRoutes);
 app.use('/api/applications', myApplicationRoutes);
