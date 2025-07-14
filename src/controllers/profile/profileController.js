@@ -2,7 +2,7 @@ import Profile from '../../models/Profile.js';
 import ApiResponse from '../../utils/ApiResponse.js';
 import ApiError from '../../utils/ApiError.js';
 import { uploadToCloudinary, deleteFromCloudinary } from '../../utils/cloudinary.js';
-import { processImage } from '../../middleware/multer';
+import { processImage } from '../../middleware/multer.js';
 import fs from 'fs';
 import path from 'path';
 import asyncHandler from 'express-async-handler';
