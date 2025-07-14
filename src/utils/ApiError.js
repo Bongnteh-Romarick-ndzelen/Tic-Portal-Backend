@@ -118,6 +118,97 @@ class ApiError extends Error {
             })
         };
     }
+    /**
+     * Creates a new API error
+     * @param {number} statusCode - HTTP status code
+     * @param {string} message - Error message
+     * @param {Array} errors - Array of validation errors
+     * @param {string} stack - Error stack trace
+     */
+    constructor(
+        statusCode,
+        message = "Something went wrong",
+        errors = [],
+        stack = ""
+    ) {
+        super(message);
+        this.statusCode = statusCode;
+        this.data = null;
+        this.message = message;
+        this.success = false;
+        this.errors = errors;
+
+        if (stack) {
+            this.stack = stack;
+        } else {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+
+    /**
+     * Creates a 400 Bad Request error
+     * @param {string} message - Error message
+     * @param {Array} errors - Validation errors
+     * @returns {ApiError}
+     */
+    static badRequest(message, errors = []) {
+        return new ApiError(400, message, errors);
+    }
+
+    /**
+     * Creates a 401 Unauthorized error
+     * @param {string} message - Error message
+     * @returns {ApiError}
+     */
+    static unauthorized(message = "Unauthorized") {
+        return new ApiError(401, message);
+    }
+
+    /**
+     * Creates a 403 Forbidden error
+     * @param {string} message - Error message
+     * @returns {ApiError}
+     */
+    static forbidden(message = "Forbidden") {
+        return new ApiError(403, message);
+    }
+
+    /**
+     * Creates a 404 Not Found error
+     * @param {string} message - Error message
+     * @returns {ApiError}
+     */
+    static notFound(message = "Not Found") {
+        return new ApiError(404, message);
+    }
+
+    /**
+     * Creates a 500 Internal Server Error
+     * @param {string} message - Error message
+     * @param {string} stack - Stack trace
+     * @returns {ApiError}
+     */
+    static internal(message = "Internal Server Error", stack = "") {
+        return new ApiError(500, message, [], stack);
+    }
+
+    /**
+     * Creates an error from a Mongoose validation error
+     * @param {Error} error - Mongoose validation error
+     * @returns {ApiError}
+     */
+    static fromMongooseValidation(error) {
+        const errors = [];
+        if (error.errors) {
+            for (const field in error.errors) {
+                errors.push({
+                    field,
+                    message: error.errors[field].message
+                });
+            }
+        }
+        return new ApiError(400, "Validation Error", errors);
+    }
 }
 
 export default ApiError;

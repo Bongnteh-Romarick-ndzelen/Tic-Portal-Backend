@@ -29,6 +29,8 @@ import internshipRoutes from './routes/internships/internship.js';
 import myApplicationRoutes from './routes/internships/myApplication.js';
 import applyInternshipRoutes from './routes/internships/applyInternship.js';
 
+import profileRoute from './routes/profile/profile.js';
+
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -67,6 +69,9 @@ app.use('/api/applications', myApplicationRoutes);
 app.use('/api/internship', applyInternshipRoutes);
 // Swagger Docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Profile Routes
+app.use('/api/profile', profileRoute);
 
 // Global error handler
 app.use(errorHandler);
