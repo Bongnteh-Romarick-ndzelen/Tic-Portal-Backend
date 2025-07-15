@@ -7,6 +7,95 @@ import fs from 'fs';
 import path from 'path';
 import asyncHandler from 'express-async-handler';
 
+/**
+ * @desc    Create new user profile
+ * @route   POST /api/profiles
+ * @access  Private
+ */
+export const createProfile = asyncHandler(async (req, res) => {
+    const userId = req.user._id; // From auth middleware
+
+    // Check for existing profile
+    const existingProfile = await Profile.findOne({ user: userId });
+    if (existingProfile) {
+        throw new ApiError(400, 'Profile already exists');
+    }
+
+    // Destructure all possible fields from request body
+    const {
+        // Personal Information
+        profileImage,
+        headline,
+        bio,
+        dateOfBirth,
+        gender,
+
+        // Contact Information
+        website,
+        socialLinks,
+
+        // Education
+        education,
+
+        // Work Experience
+        experience,
+
+        // Skills & Certifications
+        skills,
+        certifications,
+
+        // Preferences
+        notificationPreferences
+    } = req.body;
+
+    // Create new profile with all fields
+    const profile = await Profile.create({
+        user: userId,
+
+        // Personal Information
+        profileImage,
+        headline,
+        bio,
+        dateOfBirth,
+        gender,
+
+        // Contact Information
+        website,
+        socialLinks,
+
+        // Education
+        education,
+
+        // Work Experience
+        experience,
+
+        // Skills & Certifications
+        skills,
+        certifications,
+
+        // Initialize empty arrays for course tracking
+        coursesEnrolled: [],
+        coursesCompleted: [],
+        internshipsApplied: [],
+
+        // Preferences
+        notificationPreferences: notificationPreferences || {
+            emailNotifications: true,
+            pushNotifications: true,
+            courseUpdates: true,
+            promotionalOffers: false
+        },
+
+        // Initialize stats
+        profileViews: 0,
+        profileCompletion: 0
+    });
+
+    res.status(201).json(
+        new ApiResponse(201, { profile }, 'Profile created successfully')
+    );
+});
+
 // @desc    Get user profile
 // @route   GET /api/profiles/:userId
 // @access  Private
