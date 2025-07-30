@@ -3,7 +3,8 @@ import { authenticate, isInstructor } from '../../middleware/auth.js';
 import {
     courseMediaUpload,
     noneUpload,
-    cleanupFiles
+    cleanupFiles,
+    handleUploadErrors
 } from '../../middleware/upload.js';
 import {
     createCourseStep1, createCourseStep2, createCourseStep3, getCourses, getCourseById, updateCourseStep1,
@@ -131,20 +132,22 @@ router.post('/step1',
     noneUpload,
     createCourseStep1
 );
-// ------------------------------------------------------------------
-// STEP 2: Media Upload
-// ------------------------------------------------------------------
+
+////////step 2 media upload //////
+
+
 /**
  * @swagger
- * /api/courses/{courseId}/step2:
+ * tags:
+ *   name: Courses
+ *   description: Course management
+ */
+
+/**
+ * @swagger
+ * /api/courses/step2/{courseId}:
  *   post:
  *     summary: Upload course media (Step 2)
- *     description: |
- *       Upload thumbnail image and promotional video for the course.
- *       Supported formats:
- *       - Thumbnail: JPEG, PNG, WEBP
- *       - Promo Video: MP4, WEBM, QuickTime
- *       Max file size: 100MB each
  *     tags: [Courses]
  *     security:
  *       - bearerAuth: []
@@ -154,25 +157,21 @@ router.post('/step1',
  *         required: true
  *         schema:
  *           type: string
- *           example: "507f1f77bcf86cd799439011"
  *     requestBody:
  *       required: true
  *       content:
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required:
- *               - thumbnail
- *               - promoVideo
  *             properties:
  *               thumbnail:
  *                 type: string
  *                 format: binary
- *                 description: Course thumbnail image
+ *                 description: Course thumbnail image (JPEG/PNG)
  *               promoVideo:
  *                 type: string
  *                 format: binary
- *                 description: Promotional video
+ *                 description: Promotional video (MP4/WEBM)
  *     responses:
  *       200:
  *         description: Media uploaded successfully
@@ -183,75 +182,27 @@ router.post('/step1',
  *               properties:
  *                 success:
  *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Course media uploaded successfully"
  *                 thumbnailUrl:
  *                   type: string
- *                   example: "/media/thumbnails/thumbnail-123456789.jpg"
  *                 promoVideoUrl:
  *                   type: string
- *                   example: "/media/videos/video-987654321.mp4"
  *                 nextStep:
  *                   type: integer
- *                   example: 3
  *       400:
  *         description: Bad request
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "Both thumbnail and promo video are required"
- *                 suggestion:
- *                   type: string
- *                   example: "Please upload both a thumbnail image and promotional video"
- *       404:
- *         description: Course not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "Course not found or you don't have permission"
+ *       403:
+ *         description: Forbidden
  *       413:
  *         description: File too large
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "File size exceeds maximum limit of 100MB"
- *                 suggestion:
- *                   type: string
- *                   example: "Please compress your files before uploading"
+ *       500:
+ *         description: Server error
  */
-router.post('/:courseId/step2',
+router.post('/step2/:courseId',
     authenticate,
     isInstructor,
-    (req, res, next) => {
-        // Initialize files object
-        req.files = {};
-        next();
-    },
+    (req, res, next) => { req.files = {}; next(); }, // Initialize files object
     courseMediaUpload,
-    cleanupFiles,
+    handleUploadErrors,
     createCourseStep2
 );
 
@@ -483,7 +434,7 @@ router.post('/:courseId/step2',
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/Topic'
- *     
+ *
  *     Topic:
  *       type: object
  *       properties:

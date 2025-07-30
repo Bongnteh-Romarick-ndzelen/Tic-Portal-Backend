@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import Course from '../../models/Course.js';
+
+import { cleanupFiles } from '../../middleware/upload.js';
 import Module from '../../models/Module.js';
 import Enrollment from '../../models/Enrollment.js';
 import Quiz from '../../models/Quiz.js';
@@ -86,160 +88,58 @@ export const createCourseStep1 = async (req, res) => {
 
 /////////////////////Create Course Step 2/////////////////////
 export const createCourseStep2 = async (req, res) => {
-    let thumbnailFile, promoVideoFile;
-
     try {
         const { courseId } = req.params;
         const userId = req.user.id;
 
-        // Validate request contains required files
+        // Validate files
         if (!req.files?.thumbnail?.[0] || !req.files?.promoVideo?.[0]) {
-            throw new Error('Both thumbnail image and promotional video are required');
+            throw {
+                status: 400,
+                message: 'Both thumbnail and promo video are required'
+            };
         }
 
-        // Get file references
-        thumbnailFile = req.files.thumbnail[0];
-        promoVideoFile = req.files.promoVideo[0];
-
-        // Verify file types and sizes
-        validateFile(thumbnailFile, 'thumbnail');
-        validateFile(promoVideoFile, 'promoVideo');
-
-        // Verify course ownership and existence
+        // Verify course ownership
         const course = await Course.findById(courseId);
-        if (!course) {
-            throw new Error('Course not found');
-        }
+        if (!course) throw { status: 404, message: 'Course not found' };
         if (course.instructor.toString() !== userId) {
-            throw new Error('Unauthorized to update this course');
-        }
-        if (course.status !== 'draft') {
-            throw new Error('Only draft courses can be updated');
+            throw { status: 403, message: 'Unauthorized' };
         }
 
-        // Generate relative paths (platform-independent)
-        const mediaData = {
-            thumbnail: generateMediaPath('thumbnails', thumbnailFile.filename),
-            promoVideo: generateMediaPath('videos', promoVideoFile.filename),
-            $addToSet: { stepsCompleted: 2 },
-            updatedAt: new Date()
-        };
+        // Generate URLs
+        const thumbnail = `/media/course/thumbnails/${req.files.thumbnail[0].filename}`;
+        const promoVideo = `/media/course/videos/${req.files.promoVideo[0].filename}`;
 
-        // Update course with transaction for safety
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        // Update course
+        const updatedCourse = await Course.findByIdAndUpdate(
+            courseId,
+            { thumbnail, promoVideo, $addToSet: { stepsCompleted: 2 } },
+            { new: true }
+        );
 
-        try {
-            const updatedCourse = await Course.findByIdAndUpdate(
-                courseId,
-                mediaData,
-                { new: true, runValidators: true, session }
-            );
+        if (!updatedCourse) throw { status: 500, message: 'Update failed' };
 
-            if (!updatedCourse) {
-                throw new Error('Course update failed');
-            }
-
-            await session.commitTransaction();
-            session.endSession();
-
-            // Generate public URLs
-            const thumbnailUrl = generatePublicUrl('thumbnails', thumbnailFile.filename);
-            const promoVideoUrl = generatePublicUrl('videos', promoVideoFile.filename);
-
-            return res.status(200).json({
-                success: true,
-                message: 'Course media uploaded successfully',
-                thumbnailUrl,
-                promoVideoUrl,
-                nextStep: 3
-            });
-
-        } catch (transactionError) {
-            await session.abortTransaction();
-            session.endSession();
-            throw transactionError;
-        }
+        res.status(200).json({
+            success: true,
+            thumbnailUrl: thumbnail,
+            promoVideoUrl: promoVideo,
+            nextStep: 3
+        });
 
     } catch (error) {
-        console.error('Step 2 Error:', error);
+        await cleanupFiles(req.files);
 
-        // Clean up any uploaded files if they exist
-        await cleanupFiles([thumbnailFile, promoVideoFile]);
+        const status = error.status || 500;
+        const message = error.message || 'Media upload failed';
 
-        // Enhanced error response
-        const errorResponse = {
+        res.status(status).json({
             success: false,
-            message: error.message,
-            suggestion: getErrorSuggestion(error)
-        };
-
-        const statusCode = getErrorStatusCode(error);
-        return res.status(statusCode).json(errorResponse);
+            message,
+            ...(error.suggestion && { suggestion: error.suggestion })
+        });
     }
 };
-
-// Helper functions
-
-function validateFile(file, fieldName) {
-    const validTypes = {
-        thumbnail: ['image/jpeg', 'image/png', 'image/webp'],
-        promoVideo: ['video/mp4', 'video/webm', 'video/quicktime']
-    };
-
-    if (!validTypes[fieldName].includes(file.mimetype)) {
-        throw new Error(`Invalid file type for ${fieldName}. Accepted types: ${validTypes[fieldName].join(', ')}`);
-    }
-
-    if (file.size > 100 * 1024 * 1024) { // 100MB
-        throw new Error(`File too large for ${fieldName}. Maximum size is 100MB`);
-    }
-}
-
-function generateMediaPath(type, filename) {
-    return path.join('uploads', 'course', type, filename).replace(/\\/g, '/');
-}
-
-function generatePublicUrl(type, filename) {
-    return `/uploads/course/${type}/${filename}`;
-}
-
-async function cleanupFiles(files) {
-    await Promise.all(
-        files.map(async (file) => {
-            if (file?.path) {
-                try {
-                    await fs.promises.unlink(file.path);
-                } catch (err) {
-                    console.error(`Error cleaning up file ${file.path}:`, err);
-                }
-            }
-        })
-    );
-}
-
-function getErrorStatusCode(error) {
-    if (error.message.includes('not found')) return 404;
-    if (error.message.includes('Unauthorized')) return 403;
-    if (error.message.includes('file') || error.message.includes('draft')) return 400;
-    return 500;
-}
-
-function getErrorSuggestion(error) {
-    if (error.message.includes('file type')) {
-        return 'Please upload files in the correct format (JPEG/PNG for thumbnails, MP4/WEBM for videos)';
-    }
-    if (error.message.includes('too large')) {
-        return 'Please ensure files are under 100MB in size';
-    }
-    if (error.message.includes('Unauthorized')) {
-        return 'You can only update courses you created';
-    }
-    if (error.message.includes('draft')) {
-        return 'Published courses cannot be modified this way';
-    }
-    return 'Please try again or contact support if the problem persists';
-}
 
 export const createCourseStep3 = async (req, res) => {
     const session = await mongoose.startSession();
