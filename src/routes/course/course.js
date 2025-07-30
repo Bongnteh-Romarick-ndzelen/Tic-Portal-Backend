@@ -5,7 +5,11 @@ import {
     noneUpload,
     cleanupUploads
 } from '../../middleware/upload.js';
-import { createCourseStep1, createCourseStep2, createCourseStep3, getCourses, getCourseById, updateCourse, deleteCourse } from '../../controllers/course/courseController.js';
+import {
+    createCourseStep1, createCourseStep2, createCourseStep3, getCourses, getCourseById, updateCourseStep1,
+    updateCourseStep2,
+    updateCourseStep3, deleteCourse
+} from '../../controllers/course/courseController.js';
 
 const router = express.Router();
 
@@ -681,19 +685,102 @@ router.get('/:id', getCourseById);
 
 /**
  * @swagger
- * /api/courses/{id}:
+ * /api/courses/{courseId}/update-step-1:
  *   put:
- *     summary: Update a course
+ *     summary: Update course basic information (Step 1)
  *     tags: [Courses]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: courseId
  *         required: true
  *         schema:
  *           type: string
- *         description: Course ID
+ *         description: The course ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - category
+ *               - level
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: "Advanced JavaScript Concepts"
+ *               category:
+ *                 type: string
+ *                 example: "Programming"
+ *               level:
+ *                 type: string
+ *                 enum: [beginner, intermediate, advanced]
+ *                 example: "intermediate"
+ *               language:
+ *                 type: string
+ *                 example: "English"
+ *               shortDescription:
+ *                 type: string
+ *                 example: "Learn advanced JS patterns"
+ *               description:
+ *                 type: string
+ *                 example: "Detailed course about advanced JavaScript concepts"
+ *               whatYouLearn:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Closures", "Prototypes", "Async Patterns"]
+ *               requirements:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Basic JavaScript knowledge", "Node.js installed"]
+ *     responses:
+ *       200:
+ *         description: Course basic information updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 course:
+ *                   $ref: '#/components/schemas/Course'
+ *                 nextStep:
+ *                   type: number
+ *                   description: The next step to complete (2)
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Unauthorized - User is not the course instructor
+ *       404:
+ *         description: Course not found
+ *       500:
+ *         description: Server error
+ */
+router.put('/:courseId/update-step-1', authenticate, isInstructor, updateCourseStep1);
+
+/**
+ * @swagger
+ * /api/courses/{courseId}/update-step-2:
+ *   put:
+ *     summary: Update course media (Step 2)
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The course ID
  *     requestBody:
  *       required: true
  *       content:
@@ -701,30 +788,123 @@ router.get('/:id', getCourseById);
  *           schema:
  *             type: object
  *             properties:
- *               title:
- *                 type: string
- *               description:
- *                 type: string
- *               category:
- *                 type: string
- *               video:
+ *               thumbnail:
  *                 type: string
  *                 format: binary
- *               document:
+ *                 description: Course thumbnail image (JPEG/PNG)
+ *               promoVideo:
  *                 type: string
  *                 format: binary
+ *                 description: Promotional video (MP4/WEBM)
  *     responses:
  *       200:
- *         description: Course updated
+ *         description: Course media updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 thumbnailUrl:
+ *                   type: string
+ *                   description: URL of the new thumbnail (if updated)
+ *                 promoVideoUrl:
+ *                   type: string
+ *                   description: URL of the new promo video (if updated)
+ *                 nextStep:
+ *                   type: number
+ *                   description: The next step to complete (3)
+ *       400:
+ *         description: Invalid file format or missing files
  *       403:
- *         description: Unauthorized
+ *         description: Unauthorized - User is not the course instructor
  *       404:
  *         description: Course not found
  *       500:
  *         description: Server error
  */
-router.put('/:id', authenticate, isInstructor, courseMediaUpload, updateCourse);
+router.put('/:courseId/update-step-2', authenticate, isInstructor, courseMediaUpload, updateCourseStep2);
 
+/**
+ * @swagger
+ * /api/courses/{courseId}/update-step-3:
+ *   put:
+ *     summary: Update course modules and content (Step 3)
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The course ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               modules:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     title:
+ *                       type: string
+ *                       example: "Module 1: Advanced Concepts"
+ *                     topics:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           title:
+ *                             type: string
+ *                             example: "Closures"
+ *                           type:
+ *                             type: string
+ *                             enum: [lecture, quiz, assignment]
+ *                             example: "lecture"
+ *                           content:
+ *                             type: object
+ *                             properties:
+ *                               videoUrl:
+ *                                 type: string
+ *                               textContent:
+ *                                 type: string
+ *                               questions:
+ *                                 type: array
+ *                                 items:
+ *                                   type: object
+ *     responses:
+ *       200:
+ *         description: Course modules updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 course:
+ *                   $ref: '#/components/schemas/Course'
+ *       400:
+ *         description: Invalid module data
+ *       403:
+ *         description: Unauthorized - User is not the course instructor
+ *       404:
+ *         description: Course not found
+ *       500:
+ *         description: Server error
+ */
+router.put('/:courseId/update-step-3', authenticate, isInstructor, updateCourseStep3);
 
 /**
  * @swagger

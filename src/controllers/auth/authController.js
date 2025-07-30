@@ -18,11 +18,11 @@ const generateRefreshToken = (user) => {
     );
 };
 const createUserObject = (user) => ({
-                id: user._id,
-                fullName: user.fullName,
-                email: user.email,
+    id: user._id,
+    fullName: user.fullName,
+    email: user.email,
     userType: user.userType,
-        });
+});
 // ===== SIGNUP CONTROLLER =====
 const signup = async (req, res) => {
     const {
@@ -84,11 +84,11 @@ const login = async (req, res) => {
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
         res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
             maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+        });
         res.status(200).json({
             message: 'Login successful',
             user: createUserObject(user),

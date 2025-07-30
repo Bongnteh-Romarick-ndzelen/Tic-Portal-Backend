@@ -25,7 +25,7 @@ const profileSchema = new mongoose.Schema({
     dateOfBirth: Date,
     gender: {
         type: String,
-        enum: ['Male', 'Female', 'Other', 'Prefer not to say']
+        enum: ['Male', 'Female', 'Prefer not to say']
     },
 
     // Contact Information
