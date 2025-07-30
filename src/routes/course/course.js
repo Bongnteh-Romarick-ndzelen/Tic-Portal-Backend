@@ -3,7 +3,7 @@ import { authenticate, isInstructor } from '../../middleware/auth.js';
 import {
     courseMediaUpload,
     noneUpload,
-    cleanupUploads
+    cleanupFiles
 } from '../../middleware/upload.js';
 import {
     createCourseStep1, createCourseStep2, createCourseStep3, getCourses, getCourseById, updateCourseStep1,
@@ -251,7 +251,7 @@ router.post('/:courseId/step2',
         next();
     },
     courseMediaUpload,
-    cleanupUploads,
+    cleanupFiles,
     createCourseStep2
 );
 
