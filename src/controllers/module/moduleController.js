@@ -9,12 +9,13 @@ export const createModule = async (req, res) => {
     session.startTransaction();
 
     try {
-        const { title, courseId, topics } = req.body;
+        const { title, topics } = req.body;
+        const { courseId } = req.params; // Get courseId from route params
         const userId = req.user.id;
 
         // Validate required fields
-        if (!courseId || !title) {
-            throw new Error('courseId and title are required');
+        if (!title) {
+            throw new Error('title is required');
         }
 
         // Validate course exists and user is instructor

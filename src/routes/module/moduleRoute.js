@@ -244,12 +244,20 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/modules:
+ * /api/modules/{courseId}/modules:
  *   post:
  *     summary: Create a new module with topics (automatically creates quizzes for quiz topics)
  *     tags: [Modules]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: objectId
+ *         description: ID of the course to which the module will be added
  *     requestBody:
  *       required: true
  *       content:
@@ -258,15 +266,10 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - title
- *               - courseId
  *             properties:
  *               title:
  *                 type: string
  *                 example: "Advanced JavaScript"
- *               courseId:
- *                 type: string
- *                 format: objectId
- *                 example: "507f1f77bcf86cd799439011"
  *               topics:
  *                 type: array
  *                 items:
@@ -279,19 +282,19 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/ModuleResponse'
  *       400:
- *         description: Validation error
+ *         description: Validation error (missing title, invalid topic data, etc.)
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *       403:
- *         description: Unauthorized
+ *         description: Unauthorized (user is not the course instructor)
  *       404:
  *         description: Course not found
  *       500:
  *         description: Internal server error
  */
-router.post('/', authenticate, isInstructor, createModule);
+router.post('/:courseId/modules', authenticate, isInstructor, createModule);
 
 /**
  * @swagger
