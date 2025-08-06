@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import Course from '../../models/Course.js';
+import User from '../../models/User.js';
 
 import { cleanupFiles } from '../../middleware/upload.js';
 import Module from '../../models/Module.js';
@@ -761,5 +762,79 @@ export const deleteCourse = async (req, res) => {
     } catch (err) {
         console.error('Delete Course Error:', err);
         res.status(500).json({ message: 'Server error' });
+    }
+};
+
+//////////////////////Get courses by a particular Instructor ID//////////////////////
+
+
+export const getCoursesByInstructor = async (req, res) => {
+    try {
+        const { instructorId } = req.params;
+
+        // Verify the user exists and is an instructor
+        const instructor = await User.findOne({
+            _id: instructorId,
+            userType: 'instructor'  // Ensure userType is 'instructor'
+        });
+
+        if (!instructor) {
+            return res.status(404).json({
+                success: false,
+                message: 'Instructor not found or user is not an instructor'
+            });
+        }
+
+        // Get courses with selected fields and populated instructor data
+        const courses = await Course.find({ instructor: instructorId })
+            .populate({
+                path: 'instructor',
+                select: 'fullName email profilePicture',  // From User schema
+                match: { userType: 'instructor' }        // Double-check userType
+            })
+            .populate({
+                path: 'modules',
+                select: 'title duration',
+                populate: {
+                    path: 'topics.content.quizId',
+                    select: 'title'
+                }
+            })
+            .select(
+                'title category level thumbnail ' +
+                'priceType rating studentsEnrolled createdAt'
+            )
+            .sort({ createdAt: -1 });
+
+        // Filter out courses where instructor population failed (unlikely but safe)
+        const validCourses = courses.filter(course => course.instructor);
+
+        res.status(200).json({
+            success: true,
+            count: validCourses.length,
+            instructor: {
+                _id: instructor._id,
+                name: instructor.fullName,
+                email: instructor.email,
+                profilePicture: instructor.profilePicture
+            },
+            courses: validCourses.map(course => ({
+                _id: course._id,
+                title: course.title,
+                category: course.category,
+                level: course.level,
+                thumbnail: course.thumbnail,
+                price: course.priceType === 'Free' ? 0 : course.price, // Example conditional field
+                rating: course.rating,
+                studentCount: course.studentsEnrolled.length,
+                createdAt: course.createdAt
+            }))
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: err.message
+        });
     }
 };

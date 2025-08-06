@@ -30,9 +30,9 @@ const storage = multer.diskStorage({
         let folder = '';
 
         if (file.mimetype.startsWith('video')) {
-            folder = path.join(__dirname, '../../uploads/videos/');
+            folder = path.join(__dirname, '../../uploads/modules/videos/');
         } else if (allowedDocs.includes(file.mimetype)) {
-            folder = path.join(__dirname, '../../uploads/docs/');
+            folder = path.join(__dirname, '../../uploads/modules/docs/');
         } else {
             return cb(new Error('Unsupported file type'), false);
         }
@@ -42,7 +42,7 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         const ext = path.extname(file.originalname);
-        const name = `${ file.fieldname }-${ Date.now() }${ ext }`;
+        const name = `${file.fieldname}-${Date.now()}${ext}`;
         cb(null, name);
     }
 });

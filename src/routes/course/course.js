@@ -9,7 +9,7 @@ import {
 import {
     createCourseStep1, createCourseStep2, createCourseStep3, getCourses, getCourseById, updateCourseStep1,
     updateCourseStep2,
-    updateCourseStep3, deleteCourse
+    updateCourseStep3, deleteCourse, getCoursesByInstructor
 } from '../../controllers/course/courseController.js';
 
 const router = express.Router();
@@ -883,6 +883,46 @@ router.put('/:courseId/update-step-3', authenticate, isInstructor, updateCourseS
  *         description: Server error
  */
 router.delete('/:id', authenticate, isInstructor, deleteCourse);
+
+/**
+ * @swagger
+ * /api/courses/instructors/{instructorId}:
+ *   get:
+ *     summary: Get courses by a specific instructor (userType must be 'instructor')
+ *     tags: [Courses]
+ *     parameters:
+ *       - in: path
+ *         name: instructorId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         example: 507f1f77bcf86cd799439011
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved instructor's courses
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 3
+ *                 instructor:
+ *                   $ref: '#/components/schemas/User'
+ *                 courses:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Course'
+ *       404:
+ *         description: Instructor not found or user is not an instructor
+ *       500:
+ *         description: Server error
+ */
+router.get('/instructors/:instructorId', getCoursesByInstructor);
 
 export default router;
 
