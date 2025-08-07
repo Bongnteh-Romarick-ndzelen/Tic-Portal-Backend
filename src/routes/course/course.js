@@ -8,8 +8,8 @@ import {
 } from '../../middleware/upload.js';
 import {
     createCourseStep1, createCourseStep2, createCourseStep3, getCourses, getCourseById, updateCourseStep1,
-    updateCourseStep2,
-    updateCourseStep3, deleteCourse, getCoursesByInstructor
+    updateCourseStep2, getInstructorModules,
+    updateCourseStep3, deleteCourse, getCoursesByInstructor, getEnrolledCourses, getInstructorQuizzes
 } from '../../controllers/course/courseController.js';
 
 const router = express.Router();
@@ -889,7 +889,7 @@ router.delete('/:id', authenticate, isInstructor, deleteCourse);
  * /api/courses/instructors/{instructorId}:
  *   get:
  *     summary: Get courses by a specific instructor (userType must be 'instructor')
- *     tags: [Courses]
+ *     tags: [Instructor]
  *     parameters:
  *       - in: path
  *         name: instructorId
@@ -922,7 +922,213 @@ router.delete('/:id', authenticate, isInstructor, deleteCourse);
  *       500:
  *         description: Server error
  */
-router.get('/instructors/:instructorId', getCoursesByInstructor);
+router.get('/instructors/:instructorId', authenticate, isInstructor, getCoursesByInstructor);
+
+/**
+ * @swagger
+ * /api/courses/enrolled/{studentId}:
+ *   get:
+ *     tags:
+ *       - Student
+ *     summary: Get enrolled courses for authenticated student
+ *     description: |
+ *       Returns a list of courses the authenticated student is enrolled in.
+ *       - Requires valid JWT token
+ *       - Student can only view their own enrollments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: "507f1f77bcf86cd799439011"
+ *         description: ID of the student (must match authenticated user)
+ *     responses:
+ *       '200':
+ *         description: Successfully retrieved enrolled courses
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 3
+ *                 courses:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/EnrolledCourse'
+ *       '400':
+ *         description: Invalid student ID format
+ *       '401':
+ *         $ref: '#/components/responses/Unauthorized'
+ *       '403':
+ *         description: Forbidden access
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "You can only view your own enrolled courses"
+ *       '500':
+ *         $ref: '#/components/responses/ServerError'
+ *
+ * components:
+ *   schemas:
+ *     EnrolledCourse:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           example: "65a1b2c3d4e5f6g7h8i9j0k"
+ *         title:
+ *           type: string
+ *           example: "Advanced JavaScript"
+ *         category:
+ *           type: string
+ *           example: "Programming"
+ *         thumbnail:
+ *           type: string
+ *           example: "/uploads/courses/js-advanced.jpg"
+ *         instructor:
+ *           $ref: '#/components/schemas/InstructorInfo'
+ *         rating:
+ *           type: number
+ *           format: float
+ *           example: 4.7
+ *         studentCount:
+ *           type: integer
+ *           example: 342
+ *         enrollmentStatus:
+ *           type: string
+ *           enum: [active, completed, cancelled]
+ *           example: "active"
+ *         progress:
+ *           type: integer
+ *           minimum: 0
+ *           maximum: 100
+ *           example: 65
+ *         lastAccessed:
+ *           type: string
+ *           format: date-time
+ *           example: "2023-06-20T08:15:00Z"
+ *
+ *     InstructorInfo:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *           example: "Sarah Johnson"
+ *         profilePicture:
+ *           type: string
+ *           example: "/uploads/profiles/sarah.jpg"
+ *
+ *   responses:
+ *     Unauthorized:
+ *       description: Missing or invalid authentication token
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               success:
+ *                 type: boolean
+ *                 example: false
+ *               message:
+ *                 type: string
+ *                 example: "Authentication required"
+ *
+ *     ServerError:
+ *       description: Server error
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               success:
+ *                 type: boolean
+ *                 example: false
+ *               message:
+ *                 type: string
+ *                 example: "Failed to fetch enrolled courses"
+ *               error:
+ *                 type: string
+ *                 example: "Database connection error"
+ */
+
+router.get('/enrolled/:studentId', authenticate, getEnrolledCourses);
+
+/**
+ * @swagger
+ * /api/courses/instructors/{instructorId}/quizzes:
+ *   get:
+ *     tags: [Instructor]
+ *     summary: Get all quizzes created by an instructor
+ *     parameters:
+ *       - in: path
+ *         name: instructorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of quizzes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 count:
+ *                   type: integer
+ *                 quizzes:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/QuizWithCourse'
+ */
+router.get('/instructors/:instructorId/quizzes', authenticate, isInstructor, getInstructorQuizzes);
+/**
+ * @swagger
+ * /api/courses/instructors/{instructorId}/modules:
+ *   get:
+ *     tags: [Instructor]
+ *     summary: Get all modules created by an instructor
+ *     parameters:
+ *       - in: path
+ *         name: instructorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of modules
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 count:
+ *                   type: integer
+ *                 modules:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/ModuleWithCourse'
+ */
+router.get('/instructors/:instructorId/modules', authenticate, getInstructorModules);
+
 
 export default router;
 

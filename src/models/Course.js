@@ -61,6 +61,12 @@ const courseSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    // In Course model
+    status: {
+        type: String,
+        enum: ['draft', 'published', 'archived'],
+        default: 'published'
+    },
     studentsEnrolled: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'

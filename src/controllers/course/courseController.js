@@ -838,3 +838,198 @@ export const getCoursesByInstructor = async (req, res) => {
         });
     }
 };
+
+////////////////// get students and their courses enroll ///////////
+export const getEnrolledCourses = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        const requestingUserId = req.user._id;
+
+        // 1. Verify authorization
+        if (studentId !== requestingUserId.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized: You can only view your own enrolled courses'
+            });
+        }
+
+        // 2. Verify user is a student
+        const user = await User.findById(studentId);
+        if (!user || user.userType !== 'student') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access restricted to students only'
+            });
+        }
+
+        // 3. Get enrollments (REMOVED status filter)
+        const enrollments = await Enrollment.find({
+            student: studentId,
+            status: { $ne: 'cancelled' }
+        })
+            .populate({
+                path: 'course',
+                // Removed the problematic match filter
+                select: 'title category thumbnail instructor rating studentsEnrolled',
+                populate: {
+                    path: 'instructor',
+                    select: 'fullName profilePicture'
+                }
+            })
+            .sort({ enrolledAt: -1 });
+
+        // 4. Filter out null courses (if any)
+        const validEnrollments = enrollments.filter(e => e.course);
+
+        // 5. Format response
+        const courses = validEnrollments.map(enrollment => ({
+            _id: enrollment.course._id,
+            title: enrollment.course.title,
+            category: enrollment.course.category,
+            thumbnail: enrollment.course.thumbnail,
+            instructor: {
+                name: enrollment.course.instructor.fullName,
+                profilePicture: enrollment.course.instructor.profilePicture
+            },
+            rating: enrollment.course.rating,
+            studentCount: enrollment.course.studentsEnrolled.length,
+            enrollmentStatus: enrollment.status,
+            progress: enrollment.progress,
+            lastAccessed: enrollment.lastAccessed
+        }));
+
+        res.status(200).json({
+            success: true,
+            count: courses.length,
+            courses
+        });
+
+    } catch (err) {
+        console.error('Error fetching enrolled courses:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch enrolled courses',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
+};
+
+////////////////////Get all the Quizes by the particular Instructor ////////////////////
+export const getInstructorQuizzes = async (req, res) => {
+    try {
+        const { instructorId } = req.params;
+
+        // 1. Verify the instructor exists
+        const instructor = await User.findOne({
+            _id: instructorId,
+            userType: 'instructor'
+        });
+        if (!instructor) {
+            return res.status(404).json({
+                success: false,
+                message: 'Instructor not found'
+            });
+        }
+
+        // 2. Find all courses by this instructor
+        const courses = await Course.find({ instructor: instructorId }).select('_id');
+        const courseIds = courses.map(course => course._id);
+
+        // 3. Find all quizzes for these courses
+        const quizzes = await Quiz.find({ courseId: { $in: courseIds } })
+            .populate({
+                path: 'courseId',
+                select: 'title'
+            })
+            .populate({
+                path: 'moduleId',
+                select: 'title'
+            });
+
+        res.status(200).json({
+            success: true,
+            count: quizzes.length,
+            quizzes: quizzes.map(quiz => ({
+                _id: quiz._id,
+                title: quiz.title,
+                description: quiz.description,
+                questionCount: quiz.questions.length,
+                passingScore: quiz.passingScore,
+                timeLimit: quiz.timeLimit,
+                course: {
+                    _id: quiz.courseId._id,
+                    title: quiz.courseId.title
+                },
+                module: {
+                    _id: quiz.moduleId._id,
+                    title: quiz.moduleId.title
+                },
+                createdAt: quiz.createdAt
+            }))
+        });
+
+    } catch (err) {
+        console.error('Error fetching instructor quizzes:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch quizzes',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
+};
+
+
+////////////////////////////Get all the Modulles for a particular instructor //////////////
+
+export const getInstructorModules = async (req, res) => {
+    try {
+        const { instructorId } = req.params;
+
+        // 1. Verify the instructor exists
+        const instructor = await User.findOne({
+            _id: instructorId,
+            userType: 'instructor'
+        });
+        if (!instructor) {
+            return res.status(404).json({
+                success: false,
+                message: 'Instructor not found'
+            });
+        }
+
+        // 2. Find all courses by this instructor
+        const courses = await Course.find({ instructor: instructorId }).select('_id');
+        const courseIds = courses.map(course => course._id);
+
+        // 3. Find all modules for these courses
+        const modules = await Module.find({ courseId: { $in: courseIds } })
+            .populate({
+                path: 'courseId',
+                select: 'title'
+            });
+
+        res.status(200).json({
+            success: true,
+            count: modules.length,
+            modules: modules.map(module => ({
+                _id: module._id,
+                title: module.title,
+                topicCount: module.topics.length,
+                course: {
+                    _id: module.courseId._id,
+                    title: module.courseId.title
+                },
+                order: module.order,
+                createdAt: module.createdAt
+            }))
+        });
+
+    } catch (err) {
+        console.error('Error fetching instructor modules:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch modules',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
+};
