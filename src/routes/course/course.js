@@ -470,11 +470,7 @@ router.post('/step2/:courseId',
  *             type: string
  *           example: ["Topic 'Variables' requires textContent", "Module order is required", "Topic order is required"]
  */
-router.post('/step3/:courseId',
-    authenticate,
-    isInstructor,
-    express.json(),
-    createCourseStep3
+router.post('/step3/:courseId', authenticate, isInstructor, express.json(), createCourseStep3
 );
 
 
