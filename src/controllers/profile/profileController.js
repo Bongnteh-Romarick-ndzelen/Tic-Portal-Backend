@@ -3,6 +3,7 @@ import ApiResponse from '../../utils/ApiResponse.js';
 import ApiError from '../../utils/ApiError.js';
 import { uploadToCloudinary, deleteFromCloudinary } from '../../utils/cloudinary.js';
 import { processImage } from '../../middleware/multer.js';
+import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 import asyncHandler from 'express-async-handler';
@@ -189,70 +190,113 @@ export const updateProfile = asyncHandler(async (req, res, next) => {
 // @desc    Upload profile image
 // @route   PATCH /api/profiles/:userId/image
 // @access  Private
+// @desc    Upload profile image
+// @route   PATCH /api/profiles/:userId/image
+// @access  Private
 export const uploadProfileImage = asyncHandler(async (req, res) => {
     const { userId } = req.params;
 
-    // Verify ownership
+    // 1. Authorization Check
     if (req.user.id !== userId) {
         throw new ApiError(403, 'Not authorized to update this profile');
     }
 
+    // 2. File Validation
     if (!req.file) {
         throw new ApiError(400, 'No image file provided');
     }
 
-    let tempFilePath;
     try {
-        // Process image
-        const processedImage = await processImage(req.file.buffer);
+        // 3. Process Image with Sharp
+        const processedImage = await sharp(req.file.buffer)
+            .rotate() // Auto-orient based on EXIF
+            .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+            .jpeg({
+                quality: 80,
+                mozjpeg: true,
+                force: true
+            })
+            .toBuffer();
 
-        // Create temp file path
-        const tempDir = path.join(process.cwd(), 'temp');
-        if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
-        }
-        tempFilePath = path.join(tempDir, `profile-${Date.now()}.jpg`);
+        // 4. Upload with Cloudinary transformations
+        const uploadResult = await uploadToCloudinary(processedImage, 'profile_images', {
+            transformation: [
+                { width: 500, height: 500, crop: 'fill', gravity: 'face' },
+                { quality: 'auto:best' },
+                { flags: 'force_strip.progressive' }
+            ],
+            format: 'jpg'
+        });
 
-        // Save processed image to temp file
-        fs.writeFileSync(tempFilePath, processedImage);
+        // 5. Generate optimized image URL for frontend
+        const displayUrl = uploadResult.secure_url
+            .replace('/upload/', '/upload/f_auto,q_auto,fl_force_strip/')
+            .replace('http://', 'https://');
 
-        // Upload to Cloudinary
-        const result = await uploadToCloudinary(tempFilePath, 'profile_images');
-
-        // Delete old image if exists
+        // 6. Database operations...
         const existingProfile = await Profile.findOne({ user: userId });
-        if (existingProfile?.profileImage?.publicId) {
-            await deleteFromCloudinary(existingProfile.profileImage.publicId)
-                .catch(err => console.error('Failed to delete old image:', err));
-        }
+        const oldPublicId = existingProfile?.profileImage?.publicId;
 
-        // Update profile
         const updatedProfile = await Profile.findOneAndUpdate(
             { user: userId },
             {
                 profileImage: {
-                    url: result.secure_url,
-                    publicId: result.public_id,
-                    uploadedAt: new Date()
+                    url: displayUrl, // Store the optimized URL
+                    publicId: uploadResult.public_id,
+                    uploadedAt: new Date(),
+                    dimensions: {
+                        width: uploadResult.width,
+                        height: uploadResult.height
+                    }
                 }
             },
-            { new: true }
+            { new: true, runValidators: true, lean: true }
         ).populate('user', 'fullName email profilePicture userType');
 
-        res.status(200).json(
-            new ApiResponse(200, updatedProfile, 'Profile image updated successfully')
+        if (!updatedProfile) {
+            throw new ApiError(404, 'Profile not found');
+        }
+
+        // 7. Cleanup old image
+        if (oldPublicId) {
+            deleteFromCloudinary(oldPublicId).catch(console.error);
+        }
+
+        // 8. Return response with HTML-ready img tag
+        return res.status(200).json(
+            new ApiResponse(200, {
+                profile: updatedProfile,
+                imageInfo: {
+                    url: displayUrl,
+                    htmlTag: `<img src="${displayUrl}" 
+                             alt="Profile image of ${updatedProfile.user.fullName}" 
+                             width="${uploadResult.width}" 
+                             height="${uploadResult.height}"
+                             class="profile-image" 
+                             loading="lazy">`,
+                    dimensions: {
+                        width: uploadResult.width,
+                        height: uploadResult.height
+                    }
+                }
+            }, 'Profile image updated successfully')
         );
 
     } catch (error) {
-        throw new ApiError(500, 'Image upload failed', error.message);
-    } finally {
-        // Clean up temp file if it exists
-        if (tempFilePath && fs.existsSync(tempFilePath)) {
-            try {
-                fs.unlinkSync(tempFilePath);
-            } catch (err) {
-                console.error('Error deleting temp file:', err);
-            }
+        console.error('Upload Error:', error);
+
+        // Special handling for image processing errors
+        if (error.message.includes('Input buffer contains unsupported image format')) {
+            throw new ApiError(400, 'Invalid image format. Please upload JPEG or PNG.');
         }
+
+        throw new ApiError(
+            error.statusCode || 500,
+            error.message || 'Image upload failed',
+            {
+                timestamp: new Date().toISOString(),
+                userId
+            }
+        );
     }
 });

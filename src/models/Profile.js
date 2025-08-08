@@ -12,7 +12,11 @@ const profileSchema = new mongoose.Schema({
     profileImage: {
         url: String,
         publicId: String,
-        uploadedAt: Date
+        uploadedAt: Date,
+        dimensions: {
+            width: Number,
+            height: Number
+        }
     },
     headline: {
         type: String,
