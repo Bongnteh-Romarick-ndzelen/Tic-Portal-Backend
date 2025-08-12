@@ -1033,3 +1033,224 @@ export const getInstructorModules = async (req, res) => {
         });
     }
 };
+
+//////////////////////////// Get Modules for Enrolled Student //////////////
+export const getEnrolledStudentModules = async (req, res) => {
+    try {
+        const { studentId, courseId } = req.params;
+
+        // 1. Verify authorization
+        if (studentId !== req.user._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized: You can only view your own enrolled courses'
+            });
+        }
+
+        // 2. Verify enrollment
+        const enrollment = await Enrollment.findOne({
+            student: studentId,
+            course: courseId,
+            status: { $ne: 'cancelled' }
+        });
+
+        if (!enrollment) {
+            return res.status(403).json({
+                success: false,
+                message: 'You are not enrolled in this course or enrollment is cancelled'
+            });
+        }
+
+        // 3. Get course details
+        const course = await Course.findById(courseId)
+            .select('title instructor status')
+            .populate('instructor', 'fullName profilePicture');
+
+        if (!course) {
+            return res.status(404).json({
+                success: false,
+                message: 'Course not found'
+            });
+        }
+
+        if (course.status !== 'published') {
+            return res.status(403).json({
+                success: false,
+                message: 'This course is not currently available'
+            });
+        }
+
+        // 4. Get modules with topics (excluding sensitive data)
+        const modules = await Module.find({ courseId })
+            .select('title topics order')
+            .sort('order')
+            .lean();
+
+        // Safely format modules with proper null checks
+        const formattedModules = modules.map(module => {
+            // Ensure topics exists and is an array
+            const safeTopics = Array.isArray(module.topics) ? module.topics : [];
+
+            return {
+                _id: module._id,
+                title: module.title,
+                order: module.order,
+                topicCount: safeTopics.length,
+                topics: safeTopics.map(topic => ({
+                    _id: topic._id || null,
+                    title: topic.title || '',
+                    type: topic.type || 'lesson', // default to 'lesson' if not specified
+                    duration: topic.duration || 0
+                }))
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            course: {
+                _id: courseId,
+                title: course.title,
+                instructor: {
+                    _id: course.instructor?._id || null,
+                    name: course.instructor?.fullName || '',
+                    profilePicture: course.instructor?.profilePicture || ''
+                }
+            },
+            modules: formattedModules,
+            enrollmentProgress: enrollment.progress || 0
+        });
+
+    } catch (err) {
+        console.error('Error fetching enrolled course modules:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch course modules',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
+};
+
+//////////////////////////// Get Quizzes for Enrolled Student //////////////
+export const getEnrolledStudentQuizzes = async (req, res) => {
+    try {
+        const { studentId, courseId } = req.params;
+
+        // 1. Verify authorization
+        if (studentId !== req.user._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized: You can only view your own enrolled courses'
+            });
+        }
+
+        // 2. Verify enrollment
+        const enrollment = await Enrollment.findOne({
+            student: studentId,
+            course: courseId,
+            status: { $ne: 'cancelled' }
+        });
+
+        if (!enrollment) {
+            return res.status(403).json({
+                success: false,
+                message: 'You are not enrolled in this course or enrollment is cancelled'
+            });
+        }
+
+        // 3. Get course details
+        const course = await Course.findById(courseId)
+            .select('title instructor status')
+            .populate('instructor', 'fullName profilePicture');
+
+        if (!course) {
+            return res.status(404).json({
+                success: false,
+                message: 'Course not found'
+            });
+        }
+
+        if (course.status !== 'published') {
+            return res.status(403).json({
+                success: false,
+                message: 'This course is not currently available'
+            });
+        }
+
+        // 4. Get all modules to map quiz IDs
+        const modules = await Module.find({ courseId })
+            .select('title topics order')
+            .lean();
+
+        // 5. Extract all quiz topic IDs with proper null checks
+        const quizTopicIds = modules.flatMap(module => {
+            // Ensure topics exists and is an array
+            const safeTopics = Array.isArray(module?.topics) ? module.topics : [];
+
+            return safeTopics
+                .filter(topic => topic?.type === 'quiz')
+                .map(topic => topic?._id)
+                .filter(id => id);
+        });
+
+        // 6. Get all quizzes for these topics
+        const quizzes = await Quiz.find({
+            courseId,
+            topicId: { $in: quizTopicIds }
+        })
+            .select('title description passingScore timeLimit questions moduleId topicId')
+            .lean();
+
+        // 7. Format response with module and topic info
+        const formattedQuizzes = quizzes.map(quiz => {
+            const module = modules.find(m => m?._id?.equals(quiz?.moduleId));
+            const topic = module?.topics?.find(t => t?._id?.equals(quiz?.topicId));
+
+            return {
+                _id: quiz?._id || null,
+                title: quiz?.title || 'Untitled Quiz',
+                description: quiz?.description || '',
+                passingScore: quiz?.passingScore || 70,
+                timeLimit: quiz?.timeLimit || 30,
+                questionCount: Array.isArray(quiz?.questions) ? quiz.questions.length : 0,
+                module: {
+                    _id: module?._id || null,
+                    title: module?.title || 'Unknown Module',
+                    order: module?.order || 0
+                },
+                topic: {
+                    _id: topic?._id || null,
+                    title: topic?.title || 'Unknown Topic'
+                },
+                isCompleted: Array.isArray(enrollment?.completedQuizzes)
+                    ? enrollment.completedQuizzes.includes(quiz?._id)
+                    : false
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            course: {
+                _id: courseId,
+                title: course.title,
+                instructor: {
+                    _id: course.instructor?._id || null,
+                    name: course.instructor?.fullName || '',
+                    profilePicture: course.instructor?.profilePicture || ''
+                }
+            },
+            quizzes: formattedQuizzes,
+            totalQuizzes: formattedQuizzes.length,
+            completedQuizzes: Array.isArray(enrollment?.completedQuizzes)
+                ? enrollment.completedQuizzes.length
+                : 0
+        });
+
+    } catch (err) {
+        console.error('Error fetching enrolled course quizzes:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch course quizzes',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
+};

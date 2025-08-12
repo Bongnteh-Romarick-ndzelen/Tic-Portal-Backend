@@ -355,11 +355,11 @@ router.patch('/:userId', updateProfile);
 
 /**
  * @swagger
- * /api/profile/{userId}/image:
+ * /api/profiles/{userId}/image:
  *   patch:
+ *     tags: [Profile]
  *     summary: Upload profile image
  *     description: Upload or update user profile picture (JPEG/PNG, max 5MB)
- *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -368,44 +368,51 @@ router.patch('/:userId', updateProfile);
  *         required: true
  *         schema:
  *           type: string
- *           format: objectId
- *         example: 65d8f8f9e8f9f9e9f8f9f8f9
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               image:
- *                 type: string
- *                 format: binary
- *                 description: Profile image file (JPEG/PNG, max 5MB)
+ *           example: 65d8f8f9e8f9f9e9f8f9f8f9
+ *       - in: formData
+ *         name: image
+ *         type: file
+ *         required: true
+ *         description: Image file (JPEG/PNG, max 5MB)
  *     responses:
  *       200:
  *         description: Image uploaded successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ProfileImageResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     profile:
+ *                       $ref: '#/components/schemas/Profile'
+ *                     imageInfo:
+ *                       type: object
+ *                       properties:
+ *                         url:
+ *                           type: string
+ *                         htmlTag:
+ *                           type: string
+ *                         dimensions:
+ *                           type: object
+ *                           properties:
+ *                             width:
+ *                               type: number
+ *                             height:
+ *                               type: number
+ *                 message:
+ *                   type: string
  *       400:
- *         description: Invalid file type or no file provided
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Invalid file or no file provided
+ *       403:
+ *         description: Not authorized
  *       413:
  *         description: File too large (>5MB)
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
- *         description: Server error during upload
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Server error
  */
 router.patch('/:userId/image', uploadMiddleware, uploadProfileImage);
 

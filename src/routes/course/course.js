@@ -8,7 +8,9 @@ import {
 } from '../../middleware/upload.js';
 import {
     createCourseStep1, createCourseStep2, createCourseStep3, getCourses, getCourseById, updateCourseStep1,
-    updateCourseStep2, getInstructorModules,
+    updateCourseStep2, getInstructorModules, getEnrolledStudentModules,
+    getEnrolledStudentQuizzes,
+
     updateCourseStep3, deleteCourse, getCoursesByInstructor, getEnrolledCourses, getInstructorQuizzes
 } from '../../controllers/course/courseController.js';
 
@@ -1124,7 +1126,185 @@ router.get('/instructors/:instructorId/quizzes', authenticate, isInstructor, get
  *                     $ref: '#/components/schemas/ModuleWithCourse'
  */
 router.get('/instructors/:instructorId/modules', authenticate, getInstructorModules);
+/**
+ * @swagger
+ * /api/courses/{studentId}/enrolled/{courseId}/modules:
+ *   get:
+ *     summary: Get modules for a course the student is enrolled in
+ *     tags: [Student]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the student
+ *       - in: path
+ *         name: courseId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the course
+ *     responses:
+ *       200:
+ *         description: List of course modules
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 course:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     title:
+ *                       type: string
+ *                     instructor:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                         profilePicture:
+ *                           type: string
+ *                 modules:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       order:
+ *                         type: number
+ *                       topicCount:
+ *                         type: number
+ *                       topics:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             _id:
+ *                               type: string
+ *                             title:
+ *                               type: string
+ *                             type:
+ *                               type: string
+ *                             duration:
+ *                               type: number
+ *                 enrollmentProgress:
+ *                   type: number
+ *       403:
+ *         description: Unauthorized or not enrolled
+ *       404:
+ *         description: Course not found
+ *       500:
+ *         description: Server error
+ */
 
+router.get('/:studentId/enrolled/:courseId/modules', authenticate, getEnrolledStudentModules);
+
+/**
+ * @swagger
+ * /api/courses/{studentId}/enrolled/{courseId}/quizzes:
+ *   get:
+ *     summary: Get quizzes for a course the student is enrolled in
+ *     tags: [Student]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the student
+ *       - in: path
+ *         name: courseId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the course
+ *     responses:
+ *       200:
+ *         description: List of course quizzes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 course:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     title:
+ *                       type: string
+ *                     instructor:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                         profilePicture:
+ *                           type: string
+ *                 quizzes:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       passingScore:
+ *                         type: number
+ *                       timeLimit:
+ *                         type: number
+ *                       questionCount:
+ *                         type: number
+ *                       module:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           title:
+ *                             type: string
+ *                           order:
+ *                             type: number
+ *                       topic:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           title:
+ *                             type: string
+ *                       isCompleted:
+ *                         type: boolean
+ *                 totalQuizzes:
+ *                   type: number
+ *                 completedQuizzes:
+ *                   type: number
+ *       403:
+ *         description: Unauthorized or not enrolled
+ *       404:
+ *         description: Course not found
+ *       500:
+ *         description: Server error
+ */
+router.get('/:studentId/enrolled/:courseId/quizzes', authenticate, getEnrolledStudentQuizzes);
 
 export default router;
 
