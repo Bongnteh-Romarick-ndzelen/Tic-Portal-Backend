@@ -22,6 +22,7 @@ import errorHandler from './middleware/errorHandler.js';
 
 import labRoutes from './routes/labs/labs.js';
 import forumRoutes from './routes/forum/forum.js';
+import ratingRoutes from './routes/rating/ratingRoute.js';
 
 import moduleRoute from './routes/module/moduleRoute.js';
 
@@ -54,6 +55,7 @@ app.use(cookieParser());
 app.get('/', (req, res) => res.send('API Running on port 5000'));
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/ratings', ratingRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/users', userRoutes);

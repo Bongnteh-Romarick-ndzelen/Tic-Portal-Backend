@@ -57,9 +57,25 @@ const courseSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Module'
     }],
-    rating: {
-        type: Number,
-        default: 0
+    ratings: {
+        averageRating: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 5
+        },
+        ratingCount: {
+            type: Number,
+            default: 0
+        },
+        // You can add breakdown by star if needed
+        starDistribution: {
+            1: { type: Number, default: 0 },
+            2: { type: Number, default: 0 },
+            3: { type: Number, default: 0 },
+            4: { type: Number, default: 0 },
+            5: { type: Number, default: 0 }
+        }
     },
     // In Course model
     status: {
