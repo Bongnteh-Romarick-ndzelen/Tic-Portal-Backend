@@ -113,7 +113,9 @@ const sendVerificationEmail = async (user, token) => {
                         </div>
                         
                         <p>If the button above doesn't work, copy and paste this link into your browser:<br>
-                        <small>${verificationLink}</small></p>
+                        <small>${verificationLink}</small>
+                        <small>This link expires after 24hrs</small>
+                        </p>
                         
                         <div class="footer">
                             <p>If you didn't create an account with Tic Portal, please ignore this email.</p>
