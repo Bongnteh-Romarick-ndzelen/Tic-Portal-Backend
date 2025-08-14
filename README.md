@@ -1,95 +1,107 @@
 
-Tech Innovation Center (TIC) Portal
+# Tech Innovation Center (TIC) Portal
+
  For Educational Training, Skill Development & Internships
 ________________________________________
+
 1. Introduction
 1.1 Purpose
 The TIC Portal is a centralized digital platform created to train students across diverse tech domains (AI, Cybersecurity, Web Development, IoT, etc.) through structured courses, hands-on projects, hackathons, internships, and mentorship programs.
 1.2 Scope
-●	Provides an interactive Learning Management System (LMS).
+● Provides an interactive Learning Management System (LMS).
 
-●	Facilitates hackathons, virtual labs, internships, and peer collaboration.
+● Facilitates hackathons, virtual labs, internships, and peer collaboration.
 
-●	Connects students with industry mentors, internship programs, and job opportunities.
+● Connects students with industry mentors, internship programs, and job opportunities.
 
-●	Supports gamification (badges, leaderboards) to enhance engagement and motivation.
+● Supports gamification (badges, leaderboards) to enhance engagement and motivation.
 
 1.3 Definitions
-●	LMS: Learning Management System (course delivery & tracking).
+● LMS: Learning Management System (course delivery & tracking).
 
-●	Virtual Lab: Cloud-based coding environment (e.g., Jupyter, Docker).
+● Virtual Lab: Cloud-based coding environment (e.g., Jupyter, Docker).
 
-●	Hackathon Hub: Competitive coding events with submissions & judging.
+● Hackathon Hub: Competitive coding events with submissions & judging.
 
-●	Internship Portal: Platform to apply for industry internships and track applications.
+● Internship Portal: Platform to apply for industry internships and track applications.
 
 ________________________________________
-2. Overall Description
+
+2; Overall Description
 2.1 User Roles
-Role	Permissions
-Student	Enroll in courses, submit projects, join hackathons, apply for internships, interact in forums.
-Instructor	Upload courses, grade assignments, host live sessions.
-Admin	Manage users, approve events/internships, configure system settings.
-Mentor	Provide guidance via forums or 1:1 sessions.
-Employer	Post internships, review applicants, conduct interviews.
+Role Permissions
+Student Enroll in courses, submit projects, join hackathons, apply for internships, interact in forums.
+Instructor Upload courses, grade assignments, host live sessions.
+Admin Manage users, approve events/internships, configure system settings.
+Mentor Provide guidance via forums or 1:1 sessions.
+Employer Post internships, review applicants, conduct interviews.
 2.2 Use Cases
 A. Student Use Cases
-1.	Course Enrollment
+1; Course Enrollment
 
-2.	Virtual Lab Access
+2; Virtual Lab Access
 
-3.	Hackathon Participation
+3; Hackathon Participation
 
-4.	Mentorship Request
+4; Mentorship Request
 
-5.	Internship Application
+5; Internship Application
 
-○	Browse internships → Submit resume/profile → Track application status.
+○ Browse internships → Submit resume/profile → Track application status.
 
-
-
-
-
-
-# TIV Portal Backend
+## TIV Portal Backend
 
 This is the backend API for the TIC Portal built using **Node.js**, **Express**, and **MongoDB Atlas**.
 
 ## 📦 Installation & Setup
 
 1. **Download or clone this project from GitHub**
+
    ```bash
    git clone https://github.com/Bongnteh-Romarick-ndzelen/Tic-Portal-Backend
 
-2.  **Navigate into the project directory**
+2; **Navigate into the project directory**
+
 ### cd tic-portal-backend
 
+3; **Install dependencies**
 
-3. **Install dependencies**
- ## npm install
+## npm install
 
-4. **Create a .env file and add:**
-   
+4; **Create a .env file and add:**
+
    <!-- PORT=5000
     MONGO_URI=mongodb+srv://username:password@cluster0.ie18wqq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
     JWT_SECRET="F7jU$9dF!e8Dq#n3R9gT2lZwV@KxA4" -->
 
-5. Run the server
-   ## npm run dev 
+   Additionally, for email verification, add the following Nodemailer configuration:
+   EMAILJS_USER=<your_email@example.com>
+   EMAILJS_PASSWORD=your_app_specific_password
+   EMAILJS_HOST=smtp.gmail.com
+   EMAILJS_FROM_EMAIL=<noreply@ticportal.com>
+   CLIENT_URL=<http://localhost:5000>
 
-6. 🧪 Testing the API with Postman
+   For detailed Nodemailer setup instructions, please refer to [NODEMAILER_SETUP.md](NODEMAILER_SETUP.md)
+
+5; Run the server
+
+## npm run dev
+
+6; 🧪 Testing the API with Postman
 Use Postman to test the following endpoints:
 
 Note: For protected routes, you must first log in and include the JWT token in the Authorization header as:
 Bearer <your_token>
 
 🧍 Authentication
+
 | Method | Endpoint           | Description              |
 | ------ | ------------------ | ------------------------ |
 | POST   | `/api/auth/signup` | Register a new user      |
 | POST   | `/api/auth/login`  | Login user and get token |
 
 📚 Courses (Instructor Only)
+
 | Method | Endpoint           | Description             |
 | ------ | ------------------ | ----------------------- |
 | POST   | `/api/courses`     | Create a new course     |
@@ -103,7 +115,7 @@ Course Object Example:
   "title": "Web Development Fundamentals",
   "description": "Learn HTML, CSS, and JavaScript from scratch.",
   "category": "Web Development",
-  "videoUrl": "https://example.com/myvideo.mp4", // optional
+  "videoUrl": "<https://example.com/myvideo.mp4>", // optional
   "docPath": "/docs/course-guide.pdf"           // optional
 }
 
@@ -115,11 +127,13 @@ Only users with role "instructor" can create, update, or delete courses.
 
 All video extensions and document formats are allowed (handled as optional fields).
 
-7. Enrollment
- ### A. Enroll in a course ###
+7; Enrollment
+
+## A. Enroll in a course
+
 Method: POST
 
-URL: http://localhost:5000/api/enrollments/<COURSE_ID>
+URL: <http://localhost:5000/api/enrollments/><COURSE_ID>
 
 Headers:
 
@@ -140,11 +154,11 @@ Body: (none needed)
   }
 }
 
+## View Enrollments
 
-# View Enrollments
 Method: GET
 
-URL: http://localhost:5000/api/enrollments
+URL: <http://localhost:5000/api/enrollments>
 
 Headers:
 
@@ -167,7 +181,8 @@ Authorization: Bearer <your_token>
   }
 ]
 
-## TIPS #
+## TIPS
+
 ✅ Common Mistakes to Avoid
 🔒 Make sure the JWT token is sent as Bearer <token> in Authorization header.
 
@@ -176,6 +191,7 @@ Authorization: Bearer <your_token>
 🎯 Use the actual course ID from MongoDB when making the request.
 
 ## INSTRUCTOR ONLY TO ACCESS STUDENTS OR PEOPLE ENROLL IN THEIR COURSE
+
 | Method | Route                                     | Access       | Purpose                               |
 | Enroll in a course                    |
 | GET    | `/api/enrollments/my-courses/enrollments` | Instructor   | See who enrolled in their own courses |
@@ -196,4 +212,4 @@ Mongoose
 
 JWT Authentication
 
-CORS (Cross-Origin Resource Sharing)"# Tic-portal" 
+CORS (Cross-Origin Resource Sharing)"# Tic-portal"

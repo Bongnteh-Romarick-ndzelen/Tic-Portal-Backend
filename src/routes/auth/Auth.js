@@ -1,5 +1,5 @@
 import express from 'express';
-import { signup, login, refreshToken, logout } from '../../controllers/auth/authController.js';
+import { signup, login, refreshToken, logout, verifyEmail } from '../../controllers/auth/authController.js';
 
 const router = express.Router();
 
@@ -157,5 +157,27 @@ router.post('/refresh-token', refreshToken);
  */
 router.post('/logout', logout);
 
+/**
+ * @swagger
+ * /api/auth/verify-email:
+ *   get:
+ *     summary: Verify user email
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Verification token sent to user's email
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *       400:
+ *         description: Invalid verification token
+ *       500:
+ *         description: Server error
+ */
+router.get('/verify-email', verifyEmail);
 
 export default router;

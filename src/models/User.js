@@ -10,7 +10,9 @@ const userSchema = new mongoose.Schema({
     },
     phoneNumber: { type: String },
     userType: { type: String, enum: ['student', 'instructor', 'employer', 'admin', 'mentor'], required: true },
-    password: { type: String, required: true }
+    password: { type: String, required: true },
+    isVerified: { type: Boolean, default: false },
+    verificationToken: { type: String }
 });
 
 export default mongoose.model('User', userSchema);
