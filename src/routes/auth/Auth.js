@@ -33,15 +33,18 @@ const router = express.Router();
  *                 type: string
  *               email:
  *                 type: string
+ *                 example: "romarickndze@gmail.com"
  *               password:
  *                 type: string
+ *                 example: "1997Roma"
  *               userType:
  *                 type: string
  *                 enum: [student, instructor, employer, admin, mentor]
  *               phoneNumber:
  *                 type: string
+ *                 example: "+237 123 456 789"
  *               contact:
- *                 type: string
+ *                 example: "+237 123 456 789"
  *               country:
  *                 type: object
  *                 required:
@@ -50,8 +53,10 @@ const router = express.Router();
  *                 properties:
  *                   name:
  *                     type: string
+ *                     example: "Cameroon"
  *                   code:
  *                     type: string
+ *                     example: "237"
  *     responses:
  *       201:
  *         description: User created successfully
