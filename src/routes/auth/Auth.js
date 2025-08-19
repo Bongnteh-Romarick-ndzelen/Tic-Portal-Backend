@@ -1,5 +1,5 @@
 import express from 'express';
-import { signup, login, refreshToken, logout, verifyEmail } from '../../controllers/auth/authController.js';
+import { signup, login, refreshToken, logout, verifyEmail, verifyPasswordResetToken, resetPassword, forgotPassword } from '../../controllers/auth/authController.js';
 
 const router = express.Router();
 
@@ -184,5 +184,119 @@ router.post('/logout', logout);
  *         description: Server error
  */
 router.get('/verify-email', verifyEmail);
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Request password reset
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "user@example.com"
+ *     responses:
+ *       200:
+ *         description: If the email exists, a password reset link has been sent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "If an account with that email exists, a password reset link has been sent"
+ *       500:
+ *         description: Server error
+ */
+router.post('/forgot-password', forgotPassword);
+
+/**
+ * @swagger
+ * /api/auth/verify-reset-token:
+ *   get:
+ *     summary: Verify password reset token
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The password reset token
+ *     responses:
+ *       200:
+ *         description: Token is valid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Password reset token is valid"
+ *                 userId:
+ *                   type: string
+ *                   example: "507f1f77bcf86cd799439011"
+ *       400:
+ *         description: Invalid or expired token
+ *       500:
+ *         description: Server error
+ */
+router.get('/verify-reset-token', verifyPasswordResetToken);
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset user password
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - userId
+ *               - newPassword
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: The password reset token
+ *               userId:
+ *                 type: string
+ *                 description: The user's ID
+ *                 example: "507f1f77bcf86cd799439011"
+ *               newPassword:
+ *                 type: string
+ *                 description: The new password
+ *                 example: "NewSecurePassword123!"
+ *     responses:
+ *       200:
+ *         description: Password has been reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Password has been reset successfully"
+ *       400:
+ *         description: Invalid token or expired token
+ *       500:
+ *         description: Server error
+ */
+router.post('/reset-password', resetPassword);
 
 export default router;

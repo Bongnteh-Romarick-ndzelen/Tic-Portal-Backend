@@ -324,7 +324,148 @@ const verifyEmail = async (req, res) => {
     }
 };
 
-// ===== Exporting Controllers =====
-export { signup, login, refreshToken, logout, verifyEmail };
+// ===== FORGOT PASSWORD CONTROLLER =====
+const forgotPassword = async (req, res) => {
+    const { email } = req.body;
 
+    try {
+        const user = await User.findOne({ email });
+        if (!user) {
+            // Don't reveal whether email exists for security
+            return res.status(200).json({
+                message: 'If an account with that email exists, a password reset link has been sent'
+            });
+        }
+
+        // Generate password reset token (expires in 1 hour)
+        const resetToken = uuidv4();
+        user.passwordResetToken = resetToken;
+        user.passwordResetExpires = Date.now() + 3600000; // 1 hour from now
+        await user.save();
+
+        // Send password reset email
+        const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}&id=${user._id}`;
+
+        const transporter = nodemailer.createTransport({
+            host: process.env.EMAILJS_HOST || 'smtp.gmail.com',
+            port: 587,
+            secure: false,
+            auth: {
+                user: process.env.EMAILJS_USER,
+                pass: process.env.EMAILJS_PASSWORD
+            },
+            tls: {
+                rejectUnauthorized: false
+            }
+        });
+
+        const mailOptions = {
+            from: process.env.EMAILJS_FROM_EMAIL || 'noreply@ticportal.com',
+            to: user.email,
+            subject: 'Password Reset Request - TIC Portal',
+            html: `
+                <html>
+                    <head>
+                        <style>
+                            body { font-family: Arial, sans-serif; line-height: 1.6; }
+                            .button {
+                                display: inline-block;
+                                padding: 10px 20px;
+                                background-color: #3498db;
+                                color: white;
+                                text-decoration: none;
+                                border-radius: 5px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>Password Reset Request</h2>
+                        <p>Hello ${user.fullName},</p>
+                        <p>You requested to reset your password. Click the button below to proceed:</p>
+                        <a href="${resetLink}" class="button">Reset Password</a>
+                        <p>If you didn't request this, please ignore this email.</p>
+                        <p>This link will expire in 1 hour.</p>
+                    </body>
+                </html>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        res.status(200).json({
+            message: 'If an account with that email exists, a password reset link has been sent'
+        });
+    } catch (error) {
+        console.error('Password reset request failed:', error);
+        res.status(500).json({ message: 'Server error during password reset request' });
+    }
+};
+
+// ===== VERIFY PASSWORD RESET TOKEN CONTROLLER =====
+const verifyPasswordResetToken = async (req, res) => {
+    const { token } = req.query;
+
+    try {
+        const user = await User.findOne({
+            passwordResetToken: token,
+            passwordResetExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({
+                message: 'Password reset token is invalid or has expired'
+            });
+        }
+
+        res.status(200).json({
+            message: 'Password reset token is valid',
+            userId: user._id
+        });
+    } catch (error) {
+        console.error('Password reset token verification failed:', error);
+        res.status(500).json({ message: 'Server error during token verification' });
+    }
+};
+
+// ===== RESET PASSWORD CONTROLLER =====
+const resetPassword = async (req, res) => {
+    const { token, userId, newPassword } = req.body;
+
+    try {
+        const user = await User.findOne({
+            _id: userId,
+            passwordResetToken: token,
+            passwordResetExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({
+                message: 'Password reset token is invalid or has expired'
+            });
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+
+        // Clear reset token
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+
+        // Increment token version to invalidate all existing sessions
+        user.tokenVersion += 1;
+
+        await user.save();
+
+        res.status(200).json({
+            message: 'Password has been reset successfully'
+        });
+    } catch (error) {
+        console.error('Password reset failed:', error);
+        res.status(500).json({ message: 'Server error during password reset' });
+    }
+};
+
+
+export { signup, login, refreshToken, logout, verifyEmail, forgotPassword, verifyPasswordResetToken, resetPassword };
 
