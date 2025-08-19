@@ -372,7 +372,7 @@ const forgotPassword = async (req, res) => {
                                 display: inline-block;
                                 padding: 10px 20px;
                                 background-color: #3498db;
-                                color: white;
+                                color: #fff;
                                 text-decoration: none;
                                 border-radius: 5px;
                             }
@@ -381,7 +381,7 @@ const forgotPassword = async (req, res) => {
                     <body>
                         <h2>Password Reset Request</h2>
                         <p>Hello ${user.fullName},</p>
-                        <p>You requested to reset your password. Click the button below to proceed:</p>
+                        <p>You requested to reset your password.Please click the button below and follow the instructions to proceed:</p>
                         <a href="${resetLink}" class="button">Reset Password</a>
                         <p>If you didn't request this, please ignore this email.</p>
                         <p>This link will expire in 1 hour.</p>
