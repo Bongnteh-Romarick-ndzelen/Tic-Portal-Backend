@@ -141,6 +141,135 @@ const sendVerificationEmail = async (user, token) => {
         throw error;
     }
 };
+
+// ===== PASSWORD RESET SUCCESS EMAIL =====
+const sendPasswordResetSuccessEmail = async (user) => {
+    const transporter = nodemailer.createTransport({
+        host: process.env.EMAILJS_HOST || 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        auth: {
+            user: process.env.EMAILJS_USER,
+            pass: process.env.EMAILJS_PASSWORD
+        },
+        tls: {
+            rejectUnauthorized: false
+        }
+    });
+
+    const mailOptions = {
+        from: process.env.EMAILJS_FROM_EMAIL || 'noreply@ticportal.com',
+        to: user.email,
+        subject: 'Password Reset Successful - TIC Portal',
+        html: `
+            <html>
+                <head>
+                    <style type="text/css">
+                        body {
+                            font-family: 'Arial', sans-serif;
+                            line-height: 1.6;
+                            color: #333333;
+                            max-width: 600px;
+                            margin: 0 auto;
+                            padding: 20px;
+                            background-color: #f7f7f7;
+                        }
+                        .email-container {
+                            background-color: #ffffff;
+                            border-radius: 8px;
+                            padding: 30px;
+                            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                        }
+                        h2 {
+                            color: #2c3e50;
+                            margin-top: 0;
+                            font-size: 24px;
+                            border-bottom: 2px solid #f1f1f1;
+                            padding-bottom: 10px;
+                        }
+                        p {
+                            margin-bottom: 20px;
+                            font-size: 16px;
+                        }
+                        .success-icon {
+                            text-align: center;
+                            color: #27ae60;
+                            font-size: 48px;
+                            margin: 20px 0;
+                        }
+                        .footer {
+                            margin-top: 30px;
+                            font-size: 14px;
+                            color: #7f8c8d;
+                            border-top: 1px solid #eee;
+                            padding-top: 20px;
+                        }
+                        .logo {
+                            text-align: center;
+                            margin-bottom: 20px;
+                        }
+                        .logo img {
+                            max-width: 150px;
+                            height: auto;
+                        }
+                        .security-note {
+                            background-color: #f8f9fa;
+                            border-left: 4px solid #3498db;
+                            padding: 15px;
+                            margin: 20px 0;
+                            border-radius: 4px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="email-container">
+                        <div class="logo">
+                            <img src="https://web.facebook.com/photo?fbid=706755464792601&set=a.527416472726502" alt="Tic Portal Logo">
+                        </div>
+                        
+                        <h2>Password Reset Successful</h2>
+                        
+                        <p>Hello ${user.fullName},</p>
+                        
+                        <p>Your TIC Portal password has been successfully reseted.</p>
+                        
+                        <div class="success-icon">
+                            ✓
+                        </div>
+                        
+                        <p>If you did not initiate this password reset, please contact our support team immediately as your account may have been compromised.</p>
+                        
+                        <div class="security-note">
+                            <strong>Security Tip:</strong> For your account's security, we recommend:
+                            <ul>
+                                <li>Using a strong, unique password</li>
+                                <li>Enabling two-factor authentication if available</li>
+                                <li>Not sharing your password with anyone</li>
+                                <li>Regularly updating your password</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="footer">
+                            <p>This is an automated message. Please do not reply to this email.</p>
+                            <p>© 2023 TIC Portal. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+            </html>
+        `
+    };
+
+    try {
+        console.log('Attempting to send password reset success email...');
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Password reset success email sent successfully:', info.messageId);
+        return info;
+    } catch (error) {
+        console.error('Password reset success email sending failed:', error);
+        throw error;
+    }
+};
+
 const generateRefreshToken = (user) => {
     return jwt.sign(
         { id: user._id, version: user.tokenVersion },
@@ -168,7 +297,7 @@ const signup = async (req, res) => {
     try {
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ message: 'Email already in use' });
+            return res.status(400).json({ message: 'Email already in use, Please try a different email addressed' });
         }
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -290,7 +419,7 @@ const logout = async (req, res) => {
         res.clearCookie('refreshToken', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: 'none',
         });
         res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {
@@ -457,6 +586,14 @@ const resetPassword = async (req, res) => {
 
         await user.save();
 
+        // Send password reset success email
+        try {
+            await sendPasswordResetSuccessEmail(user);
+        } catch (emailError) {
+            console.error('Failed to send password reset success email:', emailError);
+            // Don't fail the password reset if email sending fails, just log it
+        }
+
         res.status(200).json({
             message: 'Password has been reset successfully'
         });
@@ -465,7 +602,6 @@ const resetPassword = async (req, res) => {
         res.status(500).json({ message: 'Server error during password reset' });
     }
 };
-
 
 export { signup, login, refreshToken, logout, verifyEmail, forgotPassword, verifyPasswordResetToken, resetPassword };
 
