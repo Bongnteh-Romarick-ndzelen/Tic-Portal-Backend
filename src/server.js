@@ -29,6 +29,7 @@ import moduleRoute from './routes/module/moduleRoute.js';
 import internshipRoutes from './routes/internships/internship.js';
 import myApplicationRoutes from './routes/internships/myApplication.js';
 import applyInternshipRoutes from './routes/internships/applyInternship.js';
+import notificationRoutes from './routes/notification/notification.js';
 
 import profileRoute from './routes/profile/profile.js';
 
@@ -69,6 +70,7 @@ app.use('/api/modules', moduleRoute);
 app.use('/api/internships', internshipRoutes);
 app.use('/api/applications', myApplicationRoutes);
 app.use('/api/internship', applyInternshipRoutes);
+app.use('/api/notifications', notificationRoutes);
 // Swagger Docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

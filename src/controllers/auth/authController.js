@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import nodemailer from 'nodemailer';
+import EmailService from '../../services/email/emailService.js';
+import NotificationManager from '../../services/notification/notificationManager.js';
 // ===== Utility Functions =====
 const generateAccessToken = (user) => {
     return jwt.sign(
@@ -284,6 +286,7 @@ const createUserObject = (user) => ({
     userType: user.userType,
 });
 // ===== SIGNUP CONTROLLER =====
+// ===== SIGNUP CONTROLLER =====
 const signup = async (req, res) => {
     const {
         fullName,
@@ -294,13 +297,16 @@ const signup = async (req, res) => {
         userType,
         password
     } = req.body;
+
     try {
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ message: 'Email already in use, Please try a different email addressed' });
+            return res.status(400).json({ message: 'Email already in use, Please try a different email address' });
         }
+
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
+
         const user = new User({
             fullName,
             email,
@@ -310,6 +316,7 @@ const signup = async (req, res) => {
             userType,
             password: hashedPassword,
         });
+
         await user.save();
 
         // Generate verification token
@@ -325,15 +332,48 @@ const signup = async (req, res) => {
             // Don't fail the signup if email sending fails, just log it
         }
 
+        // Send welcome email (new addition)
+        try {
+            await EmailService.sendWelcomeEmail(user);
+            console.log('Welcome email sent successfully to:', user.email);
+        } catch (welcomeError) {
+            console.error('Failed to send welcome email:', welcomeError);
+            // Non-critical error, just log it
+        }
+
+        // Create notification record (new addition)
+        try {
+            await NotificationManager.createNotification({
+                recipient: user._id,
+                type: 'email',
+                title: 'Welcome to TIC Portal!',
+                message: `Welcome ${user.fullName}! Your account has been created successfully. Please verify your email to access all features.`,
+                category: 'system',
+                priority: 'high',
+                metadata: {
+                    actionUrl: `${process.env.CLIENT_URL}/dashboard/student`,
+                    actionText: 'Go to Dashboard',
+                    welcome: 'true',
+                    userId: user._id.toString()
+                }
+            });
+            console.log('Welcome notification created for user:', user._id);
+        } catch (notificationError) {
+            console.error('Failed to create notification record:', notificationError);
+            // Non-critical error, just log it
+        }
+
         res.status(201).json({
             message: 'User registered successfully. Please check your email for verification.',
             user: createUserObject(user),
         });
+
     } catch (error) {
         console.error('Signup failed:', error);
         res.status(500).json({ message: 'Server error during signup' });
     }
 };
+
 // ===== LOGIN CONTROLLER =====
 const login = async (req, res) => {
     const { email, password } = req.body;
