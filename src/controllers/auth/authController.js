@@ -495,35 +495,128 @@ const forgotPassword = async (req, res) => {
             html: `
                 <html>
                     <head>
-                        <style>
-                            body { font-family: Arial, sans-serif; line-height: 1.6; }
-                            .button {
+                        <style type="text/css">
+                            body {
+                                font-family: 'Arial', sans-serif;
+                                line-height: 1.6;
+                                color: #333333;
+                                max-width: 600px;
+                                margin: 0 auto;
+                                padding: 20px;
+                                background-color: #f7f7f7;
+                            }
+                            .email-container {
+                                background-color: #ffffff;
+                                border-radius: 8px;
+                                padding: 30px;
+                                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                            }
+                            h2 {
+                                color: #2c3e50;
+                                margin-top: 0;
+                                font-size: 24px;
+                                border-bottom: 2px solid #f1f1f1;
+                                padding-bottom: 10px;
+                            }
+                            p {
+                                margin-bottom: 20px;
+                                font-size: 16px;
+                            }
+                            .reset-button {
                                 display: inline-block;
-                                padding: 10px 20px;
                                 background-color: #3498db;
-                                color: #fff;
+                                color: #ffffff !important;
                                 text-decoration: none;
+                                padding: 12px 25px;
                                 border-radius: 5px;
+                                font-weight: bold;
+                                margin: 15px 0;
+                                font-size: 16px;
+                            }
+                            .reset-button:hover {
+                                background-color: #2980b9;
+                            }
+                            .footer {
+                                margin-top: 30px;
+                                font-size: 14px;
+                                color: #7f8c8d;
+                                border-top: 1px solid #eee;
+                                padding-top: 20px;
+                            }
+                            .logo {
+                                text-align: center;
+                                margin-bottom: 20px;
+                            }
+                            .logo img {
+                                max-width: 150px;
+                                height: auto;
+                            }
+                            .warning {
+                                background-color: #fff3cd;
+                                border: 1px solid #ffeaa7;
+                                color: #856404;
+                                padding: 15px;
+                                border-radius: 5px;
+                                margin: 20px 0;
                             }
                         </style>
                     </head>
                     <body>
-                        <h2>Password Reset Request</h2>
-                        <p>Hello ${user.fullName},</p>
-                        <p>You requested to reset your password.Please click the button below and follow the instructions to proceed:</p>
-                        <a href="${resetLink}" class="button">Reset Password</a>
-                        <p>If you didn't request this, please ignore this email.</p>
-                        <p>This link will expire in 1 hour.</p>
+                        <div class="email-container">
+                            <div class="logo">
+                                <img src="https://web.facebook.com/photo?fbid=706755464792601&set=a.527416472726502" alt="Tic Portal Logo">
+                            </div>
+                            
+                            <h2>Password Reset Request</h2>
+                            
+                            <p>Hello ${user.fullName},</p>
+                            
+                            <p>You recently requested to reset your password for your TIC Portal account. Click the button below to proceed:</p>
+                            
+                            <div style="text-align: center;">
+                                <a href="${resetLink}" class="reset-button">Reset Password</a>
+                            </div>
+                            
+                            <p>If the button above doesn't work, copy and paste this link into your browser:<br>
+                            <small>${resetLink}</small></p>
+                            
+                            <div class="warning">
+                                <strong>Important:</strong> This password reset link will expire in 1 hour for security reasons.
+                            </div>
+                            
+                            <p>If you didn't request a password reset, please ignore this email or contact support if you have concerns about your account's security.</p>
+                            
+                            <div class="footer">
+                                <p>This is an automated message. Please do not reply to this email.</p>
+                                <p>© 2023 TIC Portal. All rights reserved.</p>
+                            </div>
+                        </div>
                     </body>
                 </html>
             `
         };
 
-        await transporter.sendMail(mailOptions);
+        try {
+            console.log('Attempting to send password reset email to:', user.email);
+            const info = await transporter.sendMail(mailOptions);
+            console.log('Password reset email sent successfully:', info.messageId);
 
-        res.status(200).json({
-            message: 'If an account with that email exists, a password reset link has been sent'
-        });
+            return res.status(200).json({
+                message: 'If an account with that email exists, a password reset link has been sent'
+            });
+        } catch (emailError) {
+            console.error('Password reset email sending failed:', emailError);
+
+            // Clear the reset token if email fails
+            user.passwordResetToken = undefined;
+            user.passwordResetExpires = undefined;
+            await user.save();
+
+            return res.status(500).json({
+                message: 'Failed to send password reset email. Please try again later.'
+            });
+        }
+
     } catch (error) {
         console.error('Password reset request failed:', error);
         res.status(500).json({ message: 'Server error during password reset request' });
