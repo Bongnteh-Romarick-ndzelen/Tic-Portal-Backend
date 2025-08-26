@@ -31,7 +31,13 @@ class NotificationManager {
 
     async sendNotification(notification) {
         try {
-            const user = await User.findById(notification.recipient);
+            // Ensure we have a Mongoose document
+            let notificationDoc = notification;
+            if (!notification.save || typeof notification.save !== 'function') {
+                notificationDoc = await Notification.findById(notification._id) || notification;
+            }
+
+            const user = await User.findById(notificationDoc.recipient);
 
             if (!user) {
                 throw new Error('User not found');
@@ -40,17 +46,15 @@ class NotificationManager {
             let result;
 
             // Convert metadata to object if it's not already
-            const metadata = notification.metadata instanceof Map || Array.isArray(notification.metadata)
-                ? Object.fromEntries(notification.metadata)
-                : notification.metadata;
+            const metadata = this.safeConvertMetadata(notificationDoc.metadata);
 
-            switch (notification.type) {
+            switch (notificationDoc.type) {
                 case 'email':
                     if (user.notificationPreferences.email.enabled) {
                         result = await EmailService.sendCustomNotification(
                             user,
-                            notification.title,
-                            notification.message,
+                            notificationDoc.title,
+                            notificationDoc.message,
                             metadata
                         );
                     } else {
@@ -59,22 +63,37 @@ class NotificationManager {
                     break;
 
                 case 'push':
-                    result = await PushNotificationService.sendToUser(
-                        notification.recipient,
-                        notification.title,
-                        notification.message,
-                        metadata
+                    // Check if user has valid push tokens before attempting to send
+                    const hasValidTokens = user.pushTokens && user.pushTokens.some(token =>
+                        token && typeof token === 'string' && token.length > 0
                     );
+
+                    if (hasValidTokens) {
+                        result = await PushNotificationService.sendToUser(
+                            notificationDoc.recipient,
+                            notificationDoc.title,
+                            notificationDoc.message,
+                            metadata
+                        );
+                    } else {
+                        result = {
+                            success: false,
+                            message: 'No valid push tokens found for user',
+                            error: 'No valid device tokens'
+                        };
+                    }
                     break;
 
                 default:
-                    result = { success: false, error: `Unsupported notification type: ${notification.type}` };
+                    result = { success: false, error: `Unsupported notification type: ${notificationDoc.type}` };
             }
 
             if (result.success) {
-                await notification.markAsSent();
+                if (notificationDoc.markAsSent && typeof notificationDoc.markAsSent === 'function') {
+                    await notificationDoc.markAsSent();
+                }
             } else {
-                await this.handleFailedNotification(notification, result.error);
+                await this.handleFailedNotification(notificationDoc, result.error || result.message);
             }
 
             return result;
@@ -88,37 +107,29 @@ class NotificationManager {
     async handleFailedNotification(notification, error) {
         try {
             // Make sure we're working with a Mongoose document
-            if (notification.save && typeof notification.save === 'function') {
-                if (notification.retryCount < 3) {
-                    notification.status = 'pending';
-                    notification.retryCount += 1;
+            let notificationDoc = notification;
+            if (!notification.save || typeof notification.save !== 'function') {
+                // Try to fetch the document if we have an ID
+                if (notification._id) {
+                    notificationDoc = await Notification.findById(notification._id);
+                }
+            }
+
+            if (notificationDoc && notificationDoc.save && typeof notificationDoc.save === 'function') {
+                if (notificationDoc.retryCount < 3) {
+                    notificationDoc.status = 'pending';
+                    notificationDoc.retryCount += 1;
                     // Schedule retry with exponential backoff
-                    const retryDelay = Math.pow(2, notification.retryCount) * 5 * 60 * 1000; // 5min, 10min, 20min
-                    notification.scheduledFor = new Date(Date.now() + retryDelay);
-                    await notification.save();
+                    const retryDelay = Math.pow(2, notificationDoc.retryCount) * 5 * 60 * 1000; // 5min, 10min, 20min
+                    notificationDoc.scheduledFor = new Date(Date.now() + retryDelay);
+                    await notificationDoc.save();
                 } else {
-                    notification.status = 'failed';
-                    await notification.save();
+                    notificationDoc.status = 'failed';
+                    notificationDoc.errorMessage = error?.message || error || 'Unknown error';
+                    await notificationDoc.save();
                 }
             } else {
-                console.error('Notification object is not a Mongoose document:', notification);
-                // Handle the case where notification is not a proper document
-                if (notification._id) {
-                    // If it has an ID but isn't a document, try to fetch and update
-                    const freshNotification = await Notification.findById(notification._id);
-                    if (freshNotification) {
-                        if (freshNotification.retryCount < 3) {
-                            freshNotification.status = 'pending';
-                            freshNotification.retryCount += 1;
-                            const retryDelay = Math.pow(2, freshNotification.retryCount) * 5 * 60 * 1000;
-                            freshNotification.scheduledFor = new Date(Date.now() + retryDelay);
-                            await freshNotification.save();
-                        } else {
-                            freshNotification.status = 'failed';
-                            await freshNotification.save();
-                        }
-                    }
-                }
+                console.warn('Could not save failed notification - not a Mongoose document:', notification);
             }
         } catch (saveError) {
             console.error('Error saving failed notification:', saveError);
@@ -128,6 +139,9 @@ class NotificationManager {
     // Specific notification creators
     async notifyCourseEnrollment(userId, course) {
         const user = await User.findById(userId);
+        if (!user) {
+            throw new Error('User not found');
+        }
 
         // Email notification
         if (user.notificationPreferences.email.enabled &&
@@ -135,21 +149,29 @@ class NotificationManager {
             await EmailService.sendCourseEnrollmentEmail(user, course);
         }
 
-        // Push notification
+        // Push notification - only send if user has valid tokens
         if (user.notificationPreferences.push.enabled &&
-            user.notificationPreferences.push.courseUpdates) {
-            await PushNotificationService.sendToUser(
-                userId,
-                'Course Enrollment',
-                `You've enrolled in ${course.title}`,
-                { courseId: course._id.toString(), type: 'course_enrollment' }
+            user.notificationPreferences.push.courseUpdates &&
+            user.pushTokens && user.pushTokens.length > 0) {
+
+            const hasValidTokens = user.pushTokens.some(token =>
+                token && typeof token === 'string' && token.length > 0
             );
+
+            if (hasValidTokens) {
+                await PushNotificationService.sendToUser(
+                    userId,
+                    'Course Enrollment',
+                    `You've enrolled in ${course.title}`,
+                    { courseId: course._id.toString(), type: 'course_enrollment' }
+                );
+            }
         }
 
         // Create notification record
         return this.createNotification({
             recipient: userId,
-            type: 'push', // Primary type for record
+            type: 'push',
             title: 'Course Enrollment',
             message: `You've enrolled in ${course.title}`,
             category: 'course',
@@ -169,78 +191,123 @@ class NotificationManager {
             isVerified: true
         });
 
-        // Send email notifications (in a real app, you might want to batch these)
+        let emailCount = 0;
+        let pushCount = 0;
+
+        // Send email notifications
         for (const user of users) {
             if (user.notificationPreferences.email.enabled &&
                 user.notificationPreferences.email.newContent) {
-                // In a production environment, you might use a job queue for this
-                await EmailService.sendCustomNotification(
-                    user,
-                    `New Course: ${course.title}`,
-                    `A new course "${course.title}" is now available. ${course.shortDescription}`,
-                    {
-                        actionUrl: `${process.env.CLIENT_URL}/course/${course._id}`,
-                        actionText: 'View Course'
-                    }
-                );
+                try {
+                    await EmailService.sendCustomNotification(
+                        user,
+                        `New Course: ${course.title}`,
+                        `A new course "${course.title}" is now available. ${course.shortDescription}`,
+                        {
+                            actionUrl: `${process.env.CLIENT_URL}/course/${course._id}`,
+                            actionText: 'View Course'
+                        }
+                    );
+                    emailCount++;
+                } catch (error) {
+                    console.error(`Failed to send email to ${user.email}:`, error);
+                }
             }
         }
 
-        // Send push notifications
+        // Send push notifications - only to users with valid tokens
         for (const user of users) {
             if (user.notificationPreferences.push.enabled &&
-                user.notificationPreferences.push.newContent) {
-                await PushNotificationService.sendToUser(
-                    user._id,
-                    'New Course Available',
-                    course.title,
-                    {
-                        courseId: course._id.toString(),
-                        type: 'new_course'
-                    }
+                user.notificationPreferences.push.newContent &&
+                user.pushTokens && user.pushTokens.length > 0) {
+
+                const hasValidTokens = user.pushTokens.some(token =>
+                    token && typeof token === 'string' && token.length > 0
                 );
+
+                if (hasValidTokens) {
+                    try {
+                        await PushNotificationService.sendToUser(
+                            user._id,
+                            'New Course Available',
+                            course.title,
+                            {
+                                courseId: course._id.toString(),
+                                type: 'new_course'
+                            }
+                        );
+                        pushCount++;
+                    } catch (error) {
+                        console.error(`Failed to send push to user ${user._id}:`, error);
+                    }
+                }
             }
         }
 
-        console.log(`Notified ${users.length} users about new course: ${course.title}`);
-        return users.length;
+        console.log(`Notified ${emailCount} users via email and ${pushCount} users via push about new course: ${course.title}`);
+        return { emailCount, pushCount };
     }
 
     async notifyCourseUpdate(course, updateDetails) {
         // Notify enrolled students about course updates
         const enrolledUserIds = course.studentsEnrolled;
+        let emailCount = 0;
+        let pushCount = 0;
 
         for (const userId of enrolledUserIds) {
             const user = await User.findById(userId);
 
-            if (user && user.notificationPreferences.email.enabled &&
-                user.notificationPreferences.email.courseUpdates) {
-                await EmailService.sendCustomNotification(
-                    user,
-                    `Course Updated: ${course.title}`,
-                    `The course "${course.title}" has been updated: ${updateDetails}`,
-                    {
-                        actionUrl: `${process.env.CLIENT_URL}/course/${course._id}`,
-                        actionText: 'View Updates'
+            if (user) {
+                // Email notification
+                if (user.notificationPreferences.email.enabled &&
+                    user.notificationPreferences.email.courseUpdates) {
+                    try {
+                        await EmailService.sendCustomNotification(
+                            user,
+                            `Course Updated: ${course.title}`,
+                            `The course "${course.title}" has been updated: ${updateDetails}`,
+                            {
+                                actionUrl: `${process.env.CLIENT_URL}/course/${course._id}`,
+                                actionText: 'View Updates'
+                            }
+                        );
+                        emailCount++;
+                    } catch (error) {
+                        console.error(`Failed to send email to ${user.email}:`, error);
                     }
-                );
-            }
+                }
 
-            if (user && user.notificationPreferences.push.enabled &&
-                user.notificationPreferences.push.courseUpdates) {
-                await PushNotificationService.sendToUser(
-                    userId,
-                    'Course Updated',
-                    `${course.title} has been updated`,
-                    {
-                        courseId: course._id.toString(),
-                        type: 'course_update'
+                // Push notification - only if user has valid tokens
+                if (user.notificationPreferences.push.enabled &&
+                    user.notificationPreferences.push.courseUpdates &&
+                    user.pushTokens && user.pushTokens.length > 0) {
+
+                    const hasValidTokens = user.pushTokens.some(token =>
+                        token && typeof token === 'string' && token.length > 0
+                    );
+
+                    if (hasValidTokens) {
+                        try {
+                            await PushNotificationService.sendToUser(
+                                userId,
+                                'Course Updated',
+                                `${course.title} has been updated`,
+                                {
+                                    courseId: course._id.toString(),
+                                    type: 'course_update'
+                                }
+                            );
+                            pushCount++;
+                        } catch (error) {
+                            console.error(`Failed to send push to user ${userId}:`, error);
+                        }
                     }
-                );
+                }
             }
         }
-        console.log(`Notified ${enrolledUserIds.length} students about course update: ${course.title}`);
-        return enrolledUserIds.length;
+
+        console.log(`Notified ${emailCount} students via email and ${pushCount} students via push about course update: ${course.title}`);
+        return { emailCount, pushCount };
     }
 
     // Utility method to safely convert metadata
@@ -259,6 +326,29 @@ class NotificationManager {
             return JSON.parse(metadata);
         } catch {
             return {};
+        }
+    }
+
+    // Method to clean up invalid push tokens
+    async cleanupInvalidPushTokens(userId, invalidToken = null) {
+        try {
+            const user = await User.findById(userId);
+            if (!user || !user.pushTokens) return;
+
+            if (invalidToken) {
+                // Remove specific invalid token
+                user.pushTokens = user.pushTokens.filter(token => token !== invalidToken);
+            } else {
+                // Remove all empty/invalid tokens
+                user.pushTokens = user.pushTokens.filter(token =>
+                    token && typeof token === 'string' && token.length > 0
+                );
+            }
+
+            await user.save();
+            console.log(`Cleaned up push tokens for user ${userId}`);
+        } catch (error) {
+            console.error('Error cleaning up push tokens:', error);
         }
     }
 }
