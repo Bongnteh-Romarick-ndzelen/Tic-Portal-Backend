@@ -3,6 +3,7 @@ import Notification from '../../models/Notification.js';
 import User from '../../models/User.js';
 import NotificationManager from '../../services/notification/notificationManager.js';
 import EmailService from '../../services/email/emailService.js';
+import mongoose from 'mongoose';
 
 // Get user notifications
 const getUserNotifications = async (req, res) => {
@@ -217,8 +218,8 @@ const sendTestNotification = async (req, res) => {
                 }
             });
         } else if (type === 'push') {
-            // Send test push notification
-            await NotificationManager.sendNotification({
+            // Create notification record FIRST, then send it
+            notification = await NotificationManager.createNotification({
                 recipient: userId,
                 type: 'push',
                 title: 'Test Push Notification',
@@ -230,8 +231,11 @@ const sendTestNotification = async (req, res) => {
                 }
             });
 
-            // For push, we create the record in the sendNotification method
-            notification = { message: 'Push test initiated' };
+            // Now send the notification using the created document
+            const result = await NotificationManager.sendNotification(notification);
+
+            // Add result info to response
+            notification.sendResult = result;
         } else {
             return res.status(400).json({ message: 'Invalid notification type' });
         }
@@ -246,7 +250,8 @@ const sendTestNotification = async (req, res) => {
     }
 };
 
-// Get notification statistics
+
+// Get notification statistics 
 const getNotificationStats = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -259,7 +264,7 @@ const getNotificationStats = async (req, res) => {
         const byType = await Notification.aggregate([
             {
                 $match: {
-                    recipient: mongoose.Types.ObjectId(userId),
+                    recipient: new mongoose.Types.ObjectId(userId), // Fixed: use 'new'
                     createdAt: { $gte: startDate }
                 }
             },
@@ -276,7 +281,7 @@ const getNotificationStats = async (req, res) => {
         const byCategory = await Notification.aggregate([
             {
                 $match: {
-                    recipient: mongoose.Types.ObjectId(userId),
+                    recipient: new mongoose.Types.ObjectId(userId), // Fixed: use 'new'
                     createdAt: { $gte: startDate }
                 }
             },
@@ -292,7 +297,7 @@ const getNotificationStats = async (req, res) => {
         const dailyStats = await Notification.aggregate([
             {
                 $match: {
-                    recipient: mongoose.Types.ObjectId(userId),
+                    recipient: new mongoose.Types.ObjectId(userId), // Fixed: use 'new'
                     createdAt: { $gte: startDate }
                 }
             },
