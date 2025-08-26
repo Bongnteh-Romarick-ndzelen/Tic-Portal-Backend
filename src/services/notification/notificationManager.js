@@ -39,6 +39,11 @@ class NotificationManager {
 
             let result;
 
+            // Convert metadata to object if it's not already
+            const metadata = notification.metadata instanceof Map || Array.isArray(notification.metadata)
+                ? Object.fromEntries(notification.metadata)
+                : notification.metadata;
+
             switch (notification.type) {
                 case 'email':
                     if (user.notificationPreferences.email.enabled) {
@@ -46,7 +51,7 @@ class NotificationManager {
                             user,
                             notification.title,
                             notification.message,
-                            Object.fromEntries(notification.metadata)
+                            metadata
                         );
                     } else {
                         result = { success: false, message: 'Email notifications disabled by user' };
@@ -58,7 +63,7 @@ class NotificationManager {
                         notification.recipient,
                         notification.title,
                         notification.message,
-                        Object.fromEntries(notification.metadata)
+                        metadata
                     );
                     break;
 
@@ -81,16 +86,42 @@ class NotificationManager {
     }
 
     async handleFailedNotification(notification, error) {
-        if (notification.retryCount < 3) {
-            notification.status = 'pending';
-            notification.retryCount += 1;
-            // Schedule retry with exponential backoff
-            const retryDelay = Math.pow(2, notification.retryCount) * 5 * 60 * 1000; // 5min, 10min, 20min
-            notification.scheduledFor = new Date(Date.now() + retryDelay);
-            await notification.save();
-        } else {
-            notification.status = 'failed';
-            await notification.save();
+        try {
+            // Make sure we're working with a Mongoose document
+            if (notification.save && typeof notification.save === 'function') {
+                if (notification.retryCount < 3) {
+                    notification.status = 'pending';
+                    notification.retryCount += 1;
+                    // Schedule retry with exponential backoff
+                    const retryDelay = Math.pow(2, notification.retryCount) * 5 * 60 * 1000; // 5min, 10min, 20min
+                    notification.scheduledFor = new Date(Date.now() + retryDelay);
+                    await notification.save();
+                } else {
+                    notification.status = 'failed';
+                    await notification.save();
+                }
+            } else {
+                console.error('Notification object is not a Mongoose document:', notification);
+                // Handle the case where notification is not a proper document
+                if (notification._id) {
+                    // If it has an ID but isn't a document, try to fetch and update
+                    const freshNotification = await Notification.findById(notification._id);
+                    if (freshNotification) {
+                        if (freshNotification.retryCount < 3) {
+                            freshNotification.status = 'pending';
+                            freshNotification.retryCount += 1;
+                            const retryDelay = Math.pow(2, freshNotification.retryCount) * 5 * 60 * 1000;
+                            freshNotification.scheduledFor = new Date(Date.now() + retryDelay);
+                            await freshNotification.save();
+                        } else {
+                            freshNotification.status = 'failed';
+                            await freshNotification.save();
+                        }
+                    }
+                }
+            }
+        } catch (saveError) {
+            console.error('Error saving failed notification:', saveError);
         }
     }
 
@@ -210,6 +241,25 @@ class NotificationManager {
         }
         console.log(`Notified ${enrolledUserIds.length} students about course update: ${course.title}`);
         return enrolledUserIds.length;
+    }
+
+    // Utility method to safely convert metadata
+    safeConvertMetadata(metadata) {
+        if (!metadata) return {};
+
+        if (metadata instanceof Map || Array.isArray(metadata)) {
+            return Object.fromEntries(metadata);
+        }
+
+        if (typeof metadata === 'object') {
+            return metadata;
+        }
+
+        try {
+            return JSON.parse(metadata);
+        } catch {
+            return {};
+        }
     }
 }
 
