@@ -225,14 +225,120 @@ router.delete('/', clearAllNotifications);
  */
 router.post('/test', sendTestNotification);
 
-
+/**
+ * @swagger
+ * /api/notifications/preferences:
+ *   get:
+ *     summary: Get notification preferences
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User notification preferences
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 router.get('/preferences', getPreferences);
 
+/**
+ * @swagger
+ * /api/notifications/preferences:
+ *   put:
+ *     summary: Update notification preferences
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notificationPreferences:
+ *                 type: object
+ *                 description: Notification preferences object
+ *               quietHours:
+ *                 type: object
+ *                 description: Quiet hours settings
+ *               emailFrequency:
+ *                 type: string
+ *                 enum: [immediately, daily, weekly]
+ *                 description: Email frequency preference
+ *     responses:
+ *       200:
+ *         description: Preferences updated successfully
+ *       500:
+ *         description: Server error
+ */
 router.put('/preferences', updatePreferences);
 
-
+/**
+ * @swagger
+ * /api/notifications/push-tokens:
+ *   post:
+ *     summary: Register push notification token
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Push notification token
+ *               platform:
+ *                 type: string
+ *                 enum: [web, ios, android]
+ *                 default: web
+ *                 description: Device platform
+ *     responses:
+ *       200:
+ *         description: Push token registered successfully
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 router.post('/push-tokens', registerPushToken);
 
+/**
+ * @swagger
+ * /api/notifications/push-tokens:
+ *   delete:
+ *     summary: Unregister push notification token
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Push notification token to remove
+ *     responses:
+ *       200:
+ *         description: Push token unregistered successfully
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 router.delete('/push-tokens', unregisterPushToken);
 
 export default router;
