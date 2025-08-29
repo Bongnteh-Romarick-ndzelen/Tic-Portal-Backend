@@ -1,4 +1,3 @@
-// services/notificationManager.js
 import Notification from '../../models/Notification.js';
 import EmailService from '../email/emailService.js';
 import PushNotificationService from './pushNotificationService.js';

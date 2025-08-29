@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
         code: { type: String, required: true }
     },
     phoneNumber: { type: String },
-    userType: { type: String, enum: ['student', 'instructor', 'employer', 'admin', 'mentor'], required: true },
+    userType: { type: String, enum: ['student', 'instructor', 'employer', 'admin', 'mentor', 'supervisor'], required: true },
     password: { type: String, required: true },
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String },
